@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: 'http://localhost:3000/dashboard?payment=success',
-      cancel_url: 'http://localhost:3000/pricing?payment=cancelled',
+      success_url: 'https://quotemate-eta.vercel.app/dashboard?payment=success',
+cancel_url: 'https://quotemate-eta.vercel.app/pricing?payment=cancelled',
       subscription_data: {
         trial_period_days: 7,
       },
