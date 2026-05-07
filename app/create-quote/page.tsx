@@ -138,6 +138,36 @@ export default function CreateQuotePage() {
     setSaving(false)
   }
 
+  const sendQuoteEmail = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/send-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: form.customerName,
+          customerEmail: form.customerEmail,
+          businessName: form.businessName,
+          tradeType: form.tradeType,
+          quote: generatedQuote,
+          lineItems: lineItems.filter(i => i.description && i.amount),
+          subtotal,
+          gst,
+          total,
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('Quote sent to ' + form.customerEmail + '!')
+      } else {
+        alert('Error sending email: ' + data.error)
+      }
+    } catch (error) {
+      alert('Error sending email')
+    }
+    setSaving(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
@@ -234,7 +264,7 @@ export default function CreateQuotePage() {
 
             {saved && (
               <div className="bg-emerald-900 border border-emerald-700 rounded-lg p-4 mb-6 text-emerald-300 text-sm">
-                ✅ Quote saved to your dashboard! <a href="/dashboard" className="underline font-semibold">View dashboard</a>
+                ✅ Quote saved! Now send it to your customer or go to your dashboard.
               </div>
             )}
 
@@ -293,9 +323,14 @@ export default function CreateQuotePage() {
                   {saving ? 'Saving...' : '💾 Save Quote'}
                 </button>
               ) : (
-                <a href="/dashboard" className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors text-center">
-                  ← Back to Dashboard
-                </a>
+                <div className="flex-1 flex gap-3">
+                  <button onClick={sendQuoteEmail} disabled={saving || !form.customerEmail} className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors disabled:opacity-50">
+                    {saving ? 'Sending...' : '📧 Email to Customer'}
+                  </button>
+                  <a href="/dashboard" className="py-3 px-6 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded transition-colors text-center">
+                    Dashboard
+                  </a>
+                </div>
               )}
             </div>
           </div>
