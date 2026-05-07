@@ -68,7 +68,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">QuoteMate</h1>
+        <h1 className="text-xl font-bold text-white">SmokoHQ</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-400">{user?.email}</span>
           <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-white transition-colors">Sign out</button>

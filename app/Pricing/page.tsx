@@ -38,7 +38,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <a href="/dashboard" className="text-xl font-bold text-white">QuoteMate</a>
+        <a href="/dashboard" className="text-xl font-bold text-white">SmokoHQ</a>
       </nav>
 
       <main className="max-w-4xl mx-auto px-6 py-16">
