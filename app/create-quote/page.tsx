@@ -10,6 +10,7 @@ export default function CreateQuotePage() {
   const [generatedQuote, setGeneratedQuote] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
   const [saved, setSaved] = useState(false)
+  const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     businessName: '',
@@ -67,6 +68,7 @@ export default function CreateQuotePage() {
       if (data.success) {
         setGeneratedQuote(data.quote)
         setSaved(false)
+        setSavedQuoteId(null)
         setStep(3)
       } else {
         alert('Error generating quote: ' + data.error)
@@ -115,9 +117,9 @@ export default function CreateQuotePage() {
         .select('id')
         .single()
 
-      const quoteNumber = 'QM-' + Date.now().toString().slice(-6)
+      const quoteNumber = 'SHQ-' + Date.now().toString().slice(-6)
 
-      await supabase.from('quotes').insert({
+      const { data: newQuote } = await supabase.from('quotes').insert({
         business_id: businessId,
         customer_id: customer?.id,
         quote_number: quoteNumber,
@@ -129,8 +131,9 @@ export default function CreateQuotePage() {
         total: total,
         status: 'draft',
         valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      })
+      }).select('id').single()
 
+      if (newQuote) setSavedQuoteId(newQuote.id)
       setSaved(true)
     } catch (error: any) {
       alert('Error saving quote: ' + error.message)
@@ -158,6 +161,9 @@ export default function CreateQuotePage() {
       })
       const data = await res.json()
       if (data.success) {
+        if (savedQuoteId) {
+          await supabase.from('quotes').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', savedQuoteId)
+        }
         alert('Quote sent to ' + form.customerEmail + '!')
       } else {
         alert('Error sending email: ' + data.error)
@@ -314,7 +320,7 @@ export default function CreateQuotePage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => { setGeneratedQuote(null); setSaved(false); setStep(2) }} className="px-6 py-3 border border-gray-700 text-gray-400 hover:text-white rounded transition-colors">← Edit</button>
+              <button onClick={() => { setGeneratedQuote(null); setSaved(false); setSavedQuoteId(null); setStep(2) }} className="px-6 py-3 border border-gray-700 text-gray-400 hover:text-white rounded transition-colors">← Edit</button>
               <button onClick={generateQuote} disabled={loading} className="px-6 py-3 border border-emerald-700 text-emerald-400 hover:bg-emerald-900 rounded transition-colors">
                 {loading ? 'Regenerating...' : '🔄 Regenerate'}
               </button>
