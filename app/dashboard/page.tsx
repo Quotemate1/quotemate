@@ -86,7 +86,7 @@ export default function DashboardPage() {
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <p className="text-sm text-gray-400 mb-1">Total Quotes</p>
             <p className="text-3xl font-bold text-white">{stats.total}</p>
@@ -98,6 +98,10 @@ export default function DashboardPage() {
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <p className="text-sm text-gray-400 mb-1">Revenue Quoted</p>
             <p className="text-3xl font-bold text-white">${stats.revenue.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
+          </div><div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <p className="text-sm text-gray-400 mb-1">Follow-Ups Sent</p>
+            <p className="text-3xl font-bold text-blue-400">{stats.sent}</p>
+            <p className="text-xs text-gray-600 mt-1">Auto-chasing money for you</p>
           </div>
         </div>
 
