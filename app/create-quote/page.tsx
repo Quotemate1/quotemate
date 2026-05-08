@@ -13,6 +13,7 @@ export default function CreateQuotePage() {
   const [user, setUser] = useState<any>(null)
   const [saved, setSaved] = useState(false)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
+  const [businessLoaded, setBusinessLoaded] = useState(false)
 
   const [form, setForm] = useState({
     businessName: '',
@@ -27,12 +28,32 @@ export default function CreateQuotePage() {
   ])
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
       setUser(user)
+
+      // Auto-load saved business details
+      const { data: business } = await supabase
+        .from('businesses')
+        .select('business_name, trade_type')
+        .eq('user_id', user.id)
+        .single()
+
+      if (business) {
+        setForm(f => ({
+          ...f,
+          businessName: business.business_name || '',
+          tradeType: business.trade_type || 'plumber',
+        }))
+      } else {
+        // No business yet — send to onboarding
+        window.location.href = '/onboarding'
+        return
+      }
+      setBusinessLoaded(true)
     }
-    getUser()
+    init()
   }, [])
 
   const addLineItem = () => {
@@ -85,34 +106,18 @@ export default function CreateQuotePage() {
     if (!user) return
     setSaving(true)
     try {
-      let businessId = null
-      const { data: existingBiz } = await supabase
+      const { data: business } = await supabase
         .from('businesses')
         .select('id')
         .eq('user_id', user.id)
         .single()
 
-      if (existingBiz) {
-        businessId = existingBiz.id
-      } else {
-        const { data: newBiz } = await supabase
-          .from('businesses')
-          .insert({
-            user_id: user.id,
-            business_name: form.businessName,
-            trade_type: form.tradeType,
-          })
-          .select('id')
-          .single()
-        businessId = newBiz?.id
-      }
-
-      if (!businessId) { alert('Error creating business'); setSaving(false); return }
+      if (!business) { alert('Please complete onboarding first'); setSaving(false); return }
 
       const { data: customer } = await supabase
         .from('customers')
         .insert({
-          business_id: businessId,
+          business_id: business.id,
           name: form.customerName,
           email: form.customerEmail,
         })
@@ -122,7 +127,7 @@ export default function CreateQuotePage() {
       const quoteNumber = 'SHQ-' + Date.now().toString().slice(-6)
 
       const { data: newQuote } = await supabase.from('quotes').insert({
-        business_id: businessId,
+        business_id: business.id,
         customer_id: customer?.id,
         quote_number: quoteNumber,
         job_description: form.jobDescription,
@@ -181,7 +186,6 @@ export default function CreateQuotePage() {
     const pageWidth = doc.internal.pageSize.getWidth()
     let y = 20
 
-    // Header
     doc.setFillColor(26, 26, 46)
     doc.rect(0, 0, pageWidth, 35, 'F')
     doc.setTextColor(255, 255, 255)
@@ -199,14 +203,12 @@ export default function CreateQuotePage() {
     doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, pageWidth - 60, y)
     y += 10
 
-    // Greeting
     doc.setTextColor(40, 40, 40)
     doc.setFontSize(10)
     const greetingLines = doc.splitTextToSize(generatedQuote.greeting, pageWidth - 30)
     doc.text(greetingLines, 15, y)
     y += greetingLines.length * 5 + 5
 
-    // Scope of Work
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.text('Scope of Work', 15, y)
@@ -217,7 +219,6 @@ export default function CreateQuotePage() {
     doc.text(scopeLines, 15, y)
     y += scopeLines.length * 5 + 5
 
-    // Inclusions
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.text("What's Included", 15, y)
@@ -231,7 +232,6 @@ export default function CreateQuotePage() {
     })
     y += 5
 
-    // Exclusions
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.text('Exclusions', 15, y)
@@ -245,7 +245,6 @@ export default function CreateQuotePage() {
     })
     y += 5
 
-    // Line items table
     const tableData = lineItems.filter(i => i.description && i.amount).map(item => [
       item.description,
       `$${parseFloat(item.amount).toFixed(2)}`
@@ -260,7 +259,6 @@ export default function CreateQuotePage() {
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [26, 26, 46], textColor: 255 },
-      foot: undefined,
       didParseCell: (data: any) => {
         if (data.row.index === tableData.length - 1) {
           data.cell.styles.fontStyle = 'bold'
@@ -271,13 +269,11 @@ export default function CreateQuotePage() {
 
     y = (doc as any).lastAutoTable.finalY + 10
 
-    // Check for new page
     if (y > 250) {
       doc.addPage()
       y = 20
     }
 
-    // Terms & Conditions
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(12)
     doc.text('Terms & Conditions', 15, y)
@@ -292,20 +288,25 @@ export default function CreateQuotePage() {
     doc.text(`Quote valid for ${generatedQuote.validityPeriod}`, 15, y)
     y += 8
 
-    // Closing message
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
     const closingLines = doc.splitTextToSize(generatedQuote.closingMessage, pageWidth - 30)
     doc.text(closingLines, 15, y)
 
-    // Footer
     doc.setTextColor(150, 150, 150)
     doc.setFontSize(8)
     doc.text('Generated by SmokoHQ — AI quotes for Aussie tradies', pageWidth / 2, 285, { align: 'center' })
 
-    // Download
     const fileName = `Quote-${form.customerName.replace(/\s+/g, '-')}-${Date.now()}.pdf`
     doc.save(fileName)
+  }
+
+  if (!businessLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    )
   }
 
   return (
@@ -313,7 +314,7 @@ export default function CreateQuotePage() {
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <a href="/dashboard" className="text-xl font-bold text-white">SmokoHQ</a>
         <div className="flex items-center gap-2 text-sm text-gray-400">
-          <span className={step >= 1 ? 'text-emerald-400' : ''}>Details</span>
+          <span className={step >= 1 ? 'text-emerald-400' : ''}>Customer</span>
           <span>→</span>
           <span className={step >= 2 ? 'text-emerald-400' : ''}>Line Items</span>
           <span>→</span>
@@ -325,31 +326,10 @@ export default function CreateQuotePage() {
 
         {step === 1 && (
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Job Details</h2>
-            <p className="text-gray-400 mb-8">Tell us about the job and we'll generate a professional quote.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Customer & Job Details</h2>
+            <p className="text-gray-400 mb-2">Quoting as <span className="text-emerald-400 font-semibold">{form.businessName}</span> ({form.tradeType})</p>
+            <p className="text-gray-500 text-sm mb-8">Just fill in the customer and job details — we've got the rest covered.</p>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Your Business Name</label>
-                <input type="text" value={form.businessName} onChange={(e) => setForm({...form, businessName: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Smith's Plumbing" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Trade Type</label>
-                <select value={form.tradeType} onChange={(e) => setForm({...form, tradeType: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-emerald-500">
-                  <option value="plumber">Plumber</option>
-                  <option value="electrician">Electrician</option>
-                  <option value="builder">Builder</option>
-                  <option value="painter">Painter</option>
-                  <option value="carpenter">Carpenter</option>
-                  <option value="landscaper">Landscaper</option>
-                  <option value="tiler">Tiler</option>
-                  <option value="roofer">Roofer</option>
-                  <option value="concreter">Concreter</option>
-                  <option value="fencer">Fencer</option>
-                  <option value="cleaner">Cleaner</option>
-                  <option value="hvac">HVAC / Air Conditioning</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Customer Name</label>
                 <input type="text" value={form.customerName} onChange={(e) => setForm({...form, customerName: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. John Smith" />
@@ -362,7 +342,7 @@ export default function CreateQuotePage() {
                 <label className="block text-sm text-gray-400 mb-1">Job Description</label>
                 <textarea value={form.jobDescription} onChange={(e) => setForm({...form, jobDescription: e.target.value})} rows={4} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="Describe the job in your own words..." />
               </div>
-              <button onClick={() => setStep(2)} disabled={!form.businessName || !form.customerName || !form.jobDescription} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+              <button onClick={() => setStep(2)} disabled={!form.customerName || !form.jobDescription} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                 Next → Add Line Items
               </button>
             </div>

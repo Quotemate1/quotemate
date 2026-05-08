@@ -27,7 +27,7 @@ export default function LoginPage() {
       if (error) {
         setMessage(error.message)
       } else {
-        window.location.href = '/dashboard'
+        window.location.href = '/onboarding'
       }
     }
     setLoading(false)
