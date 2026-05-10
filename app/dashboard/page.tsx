@@ -1,48 +1,60 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [business, setBusiness] = useState<any>(null)
   const [quotes, setQuotes] = useState<any[]>([])
   const [stats, setStats] = useState({ total: 0, sent: 0, revenue: 0 })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const load = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
       setUser(user)
 
       const { data: biz } = await supabase
         .from('businesses')
-        .select('id')
+        .select('*')
         .eq('user_id', user.id)
         .single()
 
-      if (biz) {
-        const { data: quotesData } = await supabase
-          .from('quotes')
-          .select('*, customers(name, email)')
-          .eq('business_id', biz.id)
-          .order('created_at', { ascending: false })
+      if (!biz) { window.location.href = '/onboarding'; return }
+      setBusiness(biz)
 
-        if (quotesData) {
-          setQuotes(quotesData)
-          const sent = quotesData.filter((q: any) => q.status === 'sent' || q.status === 'opened' || q.status === 'accepted').length
-          const revenue = quotesData.reduce((sum: number, q: any) => sum + (parseFloat(q.total) || 0), 0)
-          setStats({ total: quotesData.length, sent, revenue })
-        }
+      const { data: quotesData } = await supabase
+        .from('quotes')
+        .select('*, customers(name, email)')
+        .eq('business_id', biz.id)
+        .order('created_at', { ascending: false })
+
+      if (quotesData) {
+        setQuotes(quotesData)
+        const total = quotesData.length
+        const sent = quotesData.filter(q => q.status === 'sent' || q.status === 'opened' || q.status === 'accepted').length
+        const revenue = quotesData.reduce((sum, q) => sum + parseFloat(q.total || 0), 0)
+        setStats({ total, sent, revenue })
       }
+
       setLoading(false)
     }
-    load()
+    init()
   }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
+    if (confirm('Are you sure you want to sign out?')) {
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    }
+  }
+
+  const getFirstName = () => {
+    if (!user?.email) return 'Mate'
+    const name = user.email.split('@')[0].split('.')[0]
+    return name.charAt(0).toUpperCase() + name.slice(1)
   }
 
   const statusColor = (status: string) => {
@@ -68,17 +80,26 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">SmokoHQ</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400">{user?.email}</span>
-          <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-white transition-colors">Sign out</button>
+          <h1 className="text-xl font-bold text-white">SmokoHQ</h1>
+          {business && (
+            <span className="hidden md:inline text-sm text-gray-500 border-l border-gray-700 pl-4">
+              {business.business_name}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-400 hidden md:inline">{user?.email}</span>
+          <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-white transition-colors">
+            Sign out
+          </button>
         </div>
       </nav>
 
       <main className="max-w-6xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-white mb-2">G'day! 👋</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">G'day {getFirstName()} 👋</h2>
             <p className="text-gray-400">Here's how your quotes are tracking.</p>
           </div>
           <a href="/create-quote" className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors">
@@ -98,7 +119,8 @@ export default function DashboardPage() {
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <p className="text-sm text-gray-400 mb-1">Revenue Quoted</p>
             <p className="text-3xl font-bold text-white">${stats.revenue.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
-          </div><div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <p className="text-sm text-gray-400 mb-1">Follow-Ups Sent</p>
             <p className="text-3xl font-bold text-blue-400">{stats.sent}</p>
             <p className="text-xs text-gray-600 mt-1">Auto-chasing money for you</p>
