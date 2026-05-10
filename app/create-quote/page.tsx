@@ -14,12 +14,18 @@ export default function CreateQuotePage() {
   const [saved, setSaved] = useState(false)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
   const [businessLoaded, setBusinessLoaded] = useState(false)
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [savedItems, setSavedItems] = useState<any[]>([])
+  const [showPicker, setShowPicker] = useState(false)
 
   const [form, setForm] = useState({
     businessName: '',
     tradeType: 'plumber',
     customerName: '',
     customerEmail: '',
+    customerPhone: '',
+    jobAddress: '',
     jobDescription: '',
   })
 
@@ -33,10 +39,9 @@ export default function CreateQuotePage() {
       if (!user) { window.location.href = '/login'; return }
       setUser(user)
 
-      // Auto-load saved business details
       const { data: business } = await supabase
         .from('businesses')
-        .select('business_name, trade_type')
+        .select('id, business_name, trade_type')
         .eq('user_id', user.id)
         .single()
 
@@ -46,8 +51,15 @@ export default function CreateQuotePage() {
           businessName: business.business_name || '',
           tradeType: business.trade_type || 'plumber',
         }))
+
+        // Load saved line items
+        const { data: items } = await supabase
+          .from('saved_line_items')
+          .select('*')
+          .eq('business_id', business.id)
+          .order('description', { ascending: true })
+        if (items) setSavedItems(items)
       } else {
-        // No business yet — send to onboarding
         window.location.href = '/onboarding'
         return
       }
@@ -58,6 +70,15 @@ export default function CreateQuotePage() {
 
   const addLineItem = () => {
     setLineItems([...lineItems, { description: '', amount: '' }])
+  }
+
+  const addSavedItem = (item: any) => {
+    if (lineItems.length === 1 && !lineItems[0].description && !lineItems[0].amount) {
+      setLineItems([{ description: item.description, amount: item.amount.toString() }])
+    } else {
+      setLineItems([...lineItems, { description: item.description, amount: item.amount.toString() }])
+    }
+    setShowPicker(false)
   }
 
   const updateLineItem = (index: number, field: string, value: string) => {
@@ -76,7 +97,30 @@ export default function CreateQuotePage() {
   const gst = subtotal * 0.1
   const total = subtotal + gst
 
+  const validateStep1 = () => {
+    const newErrors: { [key: string]: string } = {}
+    if (!form.customerName.trim()) newErrors.customerName = 'Customer name is required'
+    if (!form.customerEmail.trim()) newErrors.customerEmail = 'Customer email is required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customerEmail)) newErrors.customerEmail = 'Please enter a valid email'
+    if (!form.jobDescription.trim()) newErrors.jobDescription = 'Job description is required'
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const validateStep2 = () => {
+    const newErrors: { [key: string]: string } = {}
+    const hasLineItems = lineItems.some(item => item.description.trim() && item.amount && parseFloat(item.amount) > 0)
+    if (!hasLineItems) newErrors.lineItems = 'Add at least one line item with a description and amount'
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const goToStep2 = () => {
+    if (validateStep1()) setStep(2)
+  }
+
   const generateQuote = async () => {
+    if (!validateStep2()) return
     setLoading(true)
     try {
       const res = await fetch('/api/generate-quote', {
@@ -102,6 +146,38 @@ export default function CreateQuotePage() {
     setLoading(false)
   }
 
+  const updateQuoteField = (field: string, value: any) => {
+    setGeneratedQuote((prev: any) => ({ ...prev, [field]: value }))
+  }
+
+  const updateInclusion = (index: number, value: string) => {
+    const updated = [...generatedQuote.inclusions]
+    updated[index] = value
+    updateQuoteField('inclusions', updated)
+  }
+
+  const updateExclusion = (index: number, value: string) => {
+    const updated = [...generatedQuote.exclusions]
+    updated[index] = value
+    updateQuoteField('exclusions', updated)
+  }
+
+  const removeInclusion = (index: number) => {
+    updateQuoteField('inclusions', generatedQuote.inclusions.filter((_: any, i: number) => i !== index))
+  }
+
+  const removeExclusion = (index: number) => {
+    updateQuoteField('exclusions', generatedQuote.exclusions.filter((_: any, i: number) => i !== index))
+  }
+
+  const addInclusion = () => {
+    updateQuoteField('inclusions', [...(generatedQuote.inclusions || []), 'New inclusion'])
+  }
+
+  const addExclusion = () => {
+    updateQuoteField('exclusions', [...(generatedQuote.exclusions || []), 'New exclusion'])
+  }
+
   const saveQuote = async () => {
     if (!user) return
     setSaving(true)
@@ -120,6 +196,8 @@ export default function CreateQuotePage() {
           business_id: business.id,
           name: form.customerName,
           email: form.customerEmail,
+          phone: form.customerPhone || null,
+          address: form.jobAddress || null,
         })
         .select('id')
         .single()
@@ -159,6 +237,7 @@ export default function CreateQuotePage() {
           customerEmail: form.customerEmail,
           businessName: form.businessName,
           tradeType: form.tradeType,
+          jobAddress: form.jobAddress,
           quote: generatedQuote,
           lineItems: lineItems.filter(i => i.description && i.amount),
           subtotal,
@@ -201,7 +280,12 @@ export default function CreateQuotePage() {
     doc.setFontSize(10)
     doc.text(`Quote for: ${form.customerName}`, 15, y)
     doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, pageWidth - 60, y)
-    y += 10
+    y += 6
+    if (form.jobAddress) {
+      doc.text(`Job address: ${form.jobAddress}`, 15, y)
+      y += 4
+    }
+    y += 6
 
     doc.setTextColor(40, 40, 40)
     doc.setFontSize(10)
@@ -309,20 +393,40 @@ export default function CreateQuotePage() {
     )
   }
 
+  const Stepper = () => (
+    <div className="flex items-center gap-2 max-w-2xl mx-auto px-6 mt-8 mb-2">
+      {[1, 2, 3].map((s, i) => (
+        <div key={s} className="flex-1 flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+            step > s ? 'bg-emerald-500 text-white' : step === s ? 'bg-emerald-500 text-white ring-4 ring-emerald-500 ring-opacity-20' : 'bg-gray-800 text-gray-500'
+          }`}>
+            {step > s ? '✓' : s}
+          </div>
+          {i < 2 && <div className={`flex-1 h-0.5 transition-all ${step > s ? 'bg-emerald-500' : 'bg-gray-800'}`}></div>}
+        </div>
+      ))}
+    </div>
+  )
+
+  const StepLabels = () => (
+    <div className="flex items-center max-w-2xl mx-auto px-6 mb-8">
+      <span className={`flex-1 text-xs ${step >= 1 ? 'text-emerald-400' : 'text-gray-500'}`}>Customer</span>
+      <span className={`flex-1 text-xs text-center ${step >= 2 ? 'text-emerald-400' : 'text-gray-500'}`}>Line Items</span>
+      <span className={`flex-1 text-xs text-right ${step >= 3 ? 'text-emerald-400' : 'text-gray-500'}`}>Preview & Send</span>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <a href="/dashboard" className="text-xl font-bold text-white">SmokoHQ</a>
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <span className={step >= 1 ? 'text-emerald-400' : ''}>Customer</span>
-          <span>→</span>
-          <span className={step >= 2 ? 'text-emerald-400' : ''}>Line Items</span>
-          <span>→</span>
-          <span className={step >= 3 ? 'text-emerald-400' : ''}>Preview</span>
-        </div>
+        <a href="/dashboard" className="text-sm text-gray-400 hover:text-white">← Dashboard</a>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 py-12">
+      <Stepper />
+      <StepLabels />
+
+      <main className="max-w-2xl mx-auto px-6 pb-12">
 
         {step === 1 && (
           <div>
@@ -331,18 +435,59 @@ export default function CreateQuotePage() {
             <p className="text-gray-500 text-sm mb-8">Just fill in the customer and job details — we've got the rest covered.</p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Customer Name</label>
-                <input type="text" value={form.customerName} onChange={(e) => setForm({...form, customerName: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. John Smith" />
+                <label className="block text-sm text-gray-400 mb-1">Customer Name <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  value={form.customerName}
+                  onChange={(e) => { setForm({...form, customerName: e.target.value}); setErrors({...errors, customerName: ''}) }}
+                  className={`w-full px-4 py-3 bg-gray-800 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 ${errors.customerName ? 'border-red-500' : 'border-gray-700'}`}
+                  placeholder="e.g. John Smith"
+                />
+                {errors.customerName && <p className="text-red-400 text-xs mt-1">{errors.customerName}</p>}
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Customer Email</label>
-                <input type="email" value={form.customerEmail} onChange={(e) => setForm({...form, customerEmail: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. john@email.com" />
+                <label className="block text-sm text-gray-400 mb-1">Customer Email <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  value={form.customerEmail}
+                  onChange={(e) => { setForm({...form, customerEmail: e.target.value}); setErrors({...errors, customerEmail: ''}) }}
+                  className={`w-full px-4 py-3 bg-gray-800 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 ${errors.customerEmail ? 'border-red-500' : 'border-gray-700'}`}
+                  placeholder="e.g. john@email.com"
+                />
+                {errors.customerEmail && <p className="text-red-400 text-xs mt-1">{errors.customerEmail}</p>}
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Job Description</label>
-                <textarea value={form.jobDescription} onChange={(e) => setForm({...form, jobDescription: e.target.value})} rows={4} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="Describe the job in your own words..." />
+                <label className="block text-sm text-gray-400 mb-1">Customer Phone <span className="text-gray-600">(optional)</span></label>
+                <input
+                  type="tel"
+                  value={form.customerPhone}
+                  onChange={(e) => setForm({...form, customerPhone: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+                  placeholder="e.g. 0412 345 678"
+                />
               </div>
-              <button onClick={() => setStep(2)} disabled={!form.customerName || !form.jobDescription} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Job Address <span className="text-gray-600">(optional)</span></label>
+                <input
+                  type="text"
+                  value={form.jobAddress}
+                  onChange={(e) => setForm({...form, jobAddress: e.target.value})}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+                  placeholder="e.g. 42 Smith St, Parramatta NSW 2150"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Job Description <span className="text-red-400">*</span></label>
+                <textarea
+                  value={form.jobDescription}
+                  onChange={(e) => { setForm({...form, jobDescription: e.target.value}); setErrors({...errors, jobDescription: ''}) }}
+                  rows={4}
+                  className={`w-full px-4 py-3 bg-gray-800 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 ${errors.jobDescription ? 'border-red-500' : 'border-gray-700'}`}
+                  placeholder="Describe the job in your own words. The more detail, the better the AI quote."
+                />
+                {errors.jobDescription && <p className="text-red-400 text-xs mt-1">{errors.jobDescription}</p>}
+              </div>
+              <button onClick={goToStep2} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors">
                 Next → Add Line Items
               </button>
             </div>
@@ -353,16 +498,55 @@ export default function CreateQuotePage() {
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Line Items & Pricing</h2>
             <p className="text-gray-400 mb-8">Add what you're charging for. GST will be calculated automatically.</p>
-            <div className="space-y-3 mb-6">
+            <div className="space-y-3 mb-3">
               {lineItems.map((item, index) => (
                 <div key={index} className="flex gap-3">
-                  <input type="text" value={item.description} onChange={(e) => updateLineItem(index, 'description', e.target.value)} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Supply & install Rinnai 26L" />
-                  <input type="number" value={item.amount} onChange={(e) => updateLineItem(index, 'amount', e.target.value)} className="w-32 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="$ Amount" />
+                  <input type="text" value={item.description} onChange={(e) => { updateLineItem(index, 'description', e.target.value); setErrors({...errors, lineItems: ''}) }} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Supply & install Rinnai 26L" />
+                  <input type="number" value={item.amount} onChange={(e) => { updateLineItem(index, 'amount', e.target.value); setErrors({...errors, lineItems: ''}) }} className="w-32 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="$ Amount" />
                   <button onClick={() => removeLineItem(index)} className="px-3 text-gray-500 hover:text-red-400 transition-colors">✕</button>
                 </div>
               ))}
             </div>
-            <button onClick={addLineItem} className="text-sm text-emerald-400 hover:text-emerald-300 mb-8 block">+ Add another line item</button>
+            {errors.lineItems && <p className="text-red-400 text-xs mb-3">{errors.lineItems}</p>}
+
+            <div className="flex flex-wrap gap-3 mb-8">
+              <button onClick={addLineItem} className="text-sm text-emerald-400 hover:text-emerald-300">+ Add another line item</button>
+              {savedItems.length > 0 ? (
+                <>
+                  <span className="text-gray-700">·</span>
+                  <button onClick={() => setShowPicker(!showPicker)} className="text-sm text-emerald-400 hover:text-emerald-300">
+                    ⚡ Add saved item ({savedItems.length})
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-gray-700">·</span>
+                  <a href="/settings" className="text-sm text-gray-500 hover:text-emerald-400">+ Set up saved items in Settings</a>
+                </>
+              )}
+            </div>
+
+            {showPicker && savedItems.length > 0 && (
+              <div className="bg-gray-900 border border-emerald-800 rounded-lg p-4 mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm text-gray-400">Tap to add to your quote:</p>
+                  <button onClick={() => setShowPicker(false)} className="text-gray-500 hover:text-white text-sm">✕ Close</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {savedItems.map((item: any) => (
+                    <button
+                      key={item.id}
+                      onClick={() => addSavedItem(item)}
+                      className="flex items-center justify-between px-4 py-3 bg-gray-800 hover:bg-emerald-900 hover:border-emerald-500 border border-gray-700 rounded transition-colors text-left"
+                    >
+                      <span className="text-white text-sm">{item.description}</span>
+                      <span className="text-emerald-400 font-semibold text-sm">${parseFloat(item.amount).toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
               <div className="flex justify-between text-gray-400 mb-2"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
               <div className="flex justify-between text-gray-400 mb-2"><span>GST (10%)</span><span>${gst.toFixed(2)}</span></div>
@@ -370,7 +554,7 @@ export default function CreateQuotePage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setStep(1)} className="px-6 py-3 border border-gray-700 text-gray-400 hover:text-white rounded transition-colors">← Back</button>
-              <button onClick={generateQuote} disabled={loading || !lineItems.some(item => item.description && item.amount)} className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-30">
+              <button onClick={generateQuote} disabled={loading} className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-30">
                 {loading ? '🤖 AI is writing your quote...' : '✨ Generate Quote with AI'}
               </button>
             </div>
@@ -380,7 +564,8 @@ export default function CreateQuotePage() {
         {step === 3 && generatedQuote && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Your Quote is Ready!</h2>
-            <p className="text-gray-400 mb-8">Review the AI-generated quote below.</p>
+            <p className="text-gray-400 mb-2">Click any text below to edit it before sending.</p>
+            <p className="text-gray-500 text-sm mb-8">The AI is good but not perfect — make it your own.</p>
 
             {saved && (
               <div className="bg-emerald-900 border border-emerald-700 rounded-lg p-4 mb-6 text-emerald-300 text-sm">
@@ -396,24 +581,74 @@ export default function CreateQuotePage() {
               <div className="mb-6">
                 <p className="text-gray-500 text-sm">Quote for:</p>
                 <p className="font-semibold text-lg">{form.customerName}</p>
+                {form.jobAddress && <p className="text-gray-500 text-sm">{form.jobAddress}</p>}
               </div>
-              <p className="mb-6 text-gray-700">{generatedQuote.greeting}</p>
+
+              {editingField === 'greeting' ? (
+                <textarea
+                  autoFocus
+                  value={generatedQuote.greeting}
+                  onChange={(e) => updateQuoteField('greeting', e.target.value)}
+                  onBlur={() => setEditingField(null)}
+                  rows={3}
+                  className="w-full mb-6 p-2 border border-emerald-500 rounded text-gray-700"
+                />
+              ) : (
+                <p onClick={() => setEditingField('greeting')} className="mb-6 text-gray-700 hover:bg-gray-50 cursor-pointer p-2 -m-2 rounded">{generatedQuote.greeting}</p>
+              )}
+
               <div className="mb-6">
                 <h4 className="font-bold mb-2">Scope of Work</h4>
-                <p className="text-gray-700">{generatedQuote.scopeOfWork}</p>
+                {editingField === 'scopeOfWork' ? (
+                  <textarea
+                    autoFocus
+                    value={generatedQuote.scopeOfWork}
+                    onChange={(e) => updateQuoteField('scopeOfWork', e.target.value)}
+                    onBlur={() => setEditingField(null)}
+                    rows={4}
+                    className="w-full p-2 border border-emerald-500 rounded text-gray-700"
+                  />
+                ) : (
+                  <p onClick={() => setEditingField('scopeOfWork')} className="text-gray-700 hover:bg-gray-50 cursor-pointer p-2 -m-2 rounded">{generatedQuote.scopeOfWork}</p>
+                )}
               </div>
+
               <div className="mb-6">
                 <h4 className="font-bold mb-2">What's Included</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  {generatedQuote.inclusions?.map((item: string, i: number) => (<li key={i}>{item}</li>))}
+                <ul className="space-y-1">
+                  {generatedQuote.inclusions?.map((item: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 group">
+                      <span className="text-gray-500 mt-1">•</span>
+                      <input
+                        value={item}
+                        onChange={(e) => updateInclusion(i, e.target.value)}
+                        className="flex-1 text-gray-700 bg-transparent hover:bg-gray-50 rounded p-1 -m-1 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <button onClick={() => removeInclusion(i)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    </li>
+                  ))}
                 </ul>
+                <button onClick={addInclusion} className="text-xs text-emerald-600 hover:text-emerald-700 mt-2">+ Add inclusion</button>
               </div>
+
               <div className="mb-6">
                 <h4 className="font-bold mb-2">Exclusions</h4>
-                <ul className="list-disc list-inside text-gray-700">
-                  {generatedQuote.exclusions?.map((item: string, i: number) => (<li key={i}>{item}</li>))}
+                <ul className="space-y-1">
+                  {generatedQuote.exclusions?.map((item: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 group">
+                      <span className="text-gray-500 mt-1">•</span>
+                      <input
+                        value={item}
+                        onChange={(e) => updateExclusion(i, e.target.value)}
+                        className="flex-1 text-gray-700 bg-transparent hover:bg-gray-50 rounded p-1 -m-1 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <button onClick={() => removeExclusion(i)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    </li>
+                  ))}
                 </ul>
+                <button onClick={addExclusion} className="text-xs text-emerald-600 hover:text-emerald-700 mt-2">+ Add exclusion</button>
               </div>
+
               <div className="bg-gray-50 rounded p-4 mb-6">
                 {lineItems.filter(i => i.description && i.amount).map((item, index) => (
                   <div key={index} className="flex justify-between py-1">
@@ -425,12 +660,37 @@ export default function CreateQuotePage() {
                 <div className="flex justify-between text-sm text-gray-500"><span>GST (10%)</span><span>${gst.toFixed(2)}</span></div>
                 <div className="flex justify-between font-bold text-lg mt-1"><span>Total (inc. GST)</span><span>${total.toFixed(2)}</span></div>
               </div>
+
               <div className="mb-4">
                 <h4 className="font-bold mb-1">Terms & Conditions</h4>
-                <p className="text-gray-700 text-sm">{generatedQuote.terms}</p>
+                {editingField === 'terms' ? (
+                  <textarea
+                    autoFocus
+                    value={generatedQuote.terms}
+                    onChange={(e) => updateQuoteField('terms', e.target.value)}
+                    onBlur={() => setEditingField(null)}
+                    rows={4}
+                    className="w-full p-2 border border-emerald-500 rounded text-gray-700 text-sm"
+                  />
+                ) : (
+                  <p onClick={() => setEditingField('terms')} className="text-gray-700 text-sm hover:bg-gray-50 cursor-pointer p-2 -m-2 rounded">{generatedQuote.terms}</p>
+                )}
               </div>
+
               <p className="text-gray-600 text-sm italic">Quote valid for {generatedQuote.validityPeriod}</p>
-              <p className="mt-4 text-gray-700">{generatedQuote.closingMessage}</p>
+
+              {editingField === 'closingMessage' ? (
+                <textarea
+                  autoFocus
+                  value={generatedQuote.closingMessage}
+                  onChange={(e) => updateQuoteField('closingMessage', e.target.value)}
+                  onBlur={() => setEditingField(null)}
+                  rows={3}
+                  className="w-full mt-4 p-2 border border-emerald-500 rounded text-gray-700"
+                />
+              ) : (
+                <p onClick={() => setEditingField('closingMessage')} className="mt-4 text-gray-700 hover:bg-gray-50 cursor-pointer p-2 -m-2 rounded">{generatedQuote.closingMessage}</p>
+              )}
             </div>
 
             <div className="flex gap-3 flex-wrap">

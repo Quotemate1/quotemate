@@ -131,6 +131,7 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="flex items-center gap-4">
+          <a href="/settings" className="text-sm text-gray-400 hover:text-white transition-colors">Settings</a>
           <span className="text-sm text-gray-400 hidden md:inline">{user?.email}</span>
           <button onClick={handleSignOut} className="text-sm text-gray-400 hover:text-white transition-colors">
             Sign out
