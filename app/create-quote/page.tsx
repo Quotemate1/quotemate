@@ -18,6 +18,9 @@ export default function CreateQuotePage() {
   const [editingField, setEditingField] = useState<string | null>(null)
   const [savedItems, setSavedItems] = useState<any[]>([])
   const [showPicker, setShowPicker] = useState(false)
+  const [planInfo, setPlanInfo] = useState<{ plan: string, used: number, limit: number, canCreate: boolean }>({
+    plan: 'trial', used: 0, limit: 20, canCreate: true
+  })
 
   const [form, setForm] = useState({
     businessName: '',
@@ -41,7 +44,7 @@ export default function CreateQuotePage() {
 
       const { data: business } = await supabase
         .from('businesses')
-        .select('id, business_name, trade_type')
+        .select('id, business_name, trade_type, subscription_status, subscription_plan, quote_count_this_month, quote_count_reset_at')
         .eq('user_id', user.id)
         .single()
 
@@ -52,7 +55,36 @@ export default function CreateQuotePage() {
           tradeType: business.trade_type || 'plumber',
         }))
 
-        // Load saved line items
+        // Check if we need to reset monthly quote count
+        const resetDate = business.quote_count_reset_at ? new Date(business.quote_count_reset_at) : new Date()
+        const now = new Date()
+        const daysSinceReset = (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24)
+
+        let usedCount = business.quote_count_this_month || 0
+
+        if (daysSinceReset >= 30) {
+          await supabase
+            .from('businesses')
+            .update({ quote_count_this_month: 0, quote_count_reset_at: new Date().toISOString() })
+            .eq('id', business.id)
+          usedCount = 0
+        }
+
+        const plan = business.subscription_plan || 'trial'
+        const isActive = business.subscription_status === 'active' || business.subscription_status === 'trialing'
+
+        let limit = 2 // No subscription = 2 free quotes lifetime
+        if (plan === 'pro' && isActive) limit = 999999
+        else if (plan === 'starter' && isActive) limit = 20
+        else if (business.subscription_status === 'trialing') limit = 20
+
+        setPlanInfo({
+          plan: isActive ? plan : 'trial',
+          used: usedCount,
+          limit: limit,
+          canCreate: usedCount < limit,
+        })
+
         const { data: items } = await supabase
           .from('saved_line_items')
           .select('*')
@@ -184,7 +216,7 @@ export default function CreateQuotePage() {
     try {
       const { data: business } = await supabase
         .from('businesses')
-        .select('id')
+        .select('id, quote_count_this_month')
         .eq('user_id', user.id)
         .single()
 
@@ -217,6 +249,11 @@ export default function CreateQuotePage() {
         status: 'draft',
         valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       }).select('id').single()
+
+      await supabase
+        .from('businesses')
+        .update({ quote_count_this_month: (business.quote_count_this_month || 0) + 1 })
+        .eq('id', business.id)
 
       if (newQuote) setSavedQuoteId(newQuote.id)
       setSaved(true)
@@ -393,6 +430,33 @@ export default function CreateQuotePage() {
     )
   }
 
+  if (!planInfo.canCreate) {
+    return (
+      <div className="min-h-screen bg-gray-950">
+        <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+          <a href="/dashboard" className="text-xl font-bold text-white">SmokoHQ</a>
+          <a href="/dashboard" className="text-sm text-gray-400 hover:text-white">← Dashboard</a>
+        </nav>
+        <main className="max-w-xl mx-auto px-6 py-20 text-center">
+          <div className="inline-block px-3 py-1 bg-amber-900 text-amber-400 text-xs font-semibold rounded-full mb-6 tracking-wide uppercase">
+            Quote Limit Reached
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">You've used all {planInfo.limit} quotes</h1>
+          <p className="text-gray-400 mb-8">
+            {planInfo.plan === 'trial'
+              ? "You've used your 2 free quotes. Subscribe to keep winning more jobs with SmokoHQ."
+              : "You've hit your Starter plan limit. Upgrade to Pro for unlimited quotes and auto follow-ups."
+            }
+          </p>
+          <a href="/pricing" className="inline-block px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg rounded transition-colors">
+            View Plans →
+          </a>
+          <p className="text-gray-600 text-sm mt-6">Start your 7-day free trial. Cancel anytime.</p>
+        </main>
+      </div>
+    )
+  }
+
   const Stepper = () => (
     <div className="flex items-center gap-2 max-w-2xl mx-auto px-6 mt-8 mb-2">
       {[1, 2, 3].map((s, i) => (
@@ -416,12 +480,24 @@ export default function CreateQuotePage() {
     </div>
   )
 
+  const remaining = planInfo.limit - planInfo.used
+  const showWarning = planInfo.limit < 999 && remaining <= 2
+
   return (
     <div className="min-h-screen bg-gray-950">
       <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <a href="/dashboard" className="text-xl font-bold text-white">SmokoHQ</a>
         <a href="/dashboard" className="text-sm text-gray-400 hover:text-white">← Dashboard</a>
       </nav>
+
+      {showWarning && (
+        <div className="bg-amber-900 border-b border-amber-800 px-6 py-3 text-center">
+          <p className="text-sm text-amber-200">
+            ⚠️ You have <strong>{remaining}</strong> quote{remaining !== 1 ? 's' : ''} remaining.{' '}
+            <a href="/pricing" className="underline hover:text-white">Upgrade for unlimited quotes →</a>
+          </p>
+        </div>
+      )}
 
       <Stepper />
       <StepLabels />
