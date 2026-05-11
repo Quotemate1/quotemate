@@ -49,6 +49,17 @@ export default function OnboardingPage() {
         address: form.address || null,
       })
       if (error) throw error
+
+      // Send welcome email (don't block redirect if it fails)
+      fetch('/api/send-welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          name: form.businessName,
+        }),
+      }).catch(() => {})
+
       window.location.href = '/dashboard'
     } catch (error: any) {
       alert('Error saving: ' + error.message)
