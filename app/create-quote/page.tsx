@@ -235,6 +235,7 @@ export default function CreateQuotePage() {
         .single()
 
       const quoteNumber = 'SHQ-' + Date.now().toString().slice(-6)
+      const publicToken = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
 
       const { data: newQuote } = await supabase.from('quotes').insert({
         business_id: business.id,
@@ -248,7 +249,8 @@ export default function CreateQuotePage() {
         total: total,
         status: 'draft',
         valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      }).select('id').single()
+        public_token: publicToken,
+      }).select('id, public_token').single()
 
       await supabase
         .from('businesses')
@@ -280,6 +282,7 @@ export default function CreateQuotePage() {
           subtotal,
           gst,
           total,
+          quoteId: savedQuoteId,
         })
       })
       const data = await res.json()
