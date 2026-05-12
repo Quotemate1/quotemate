@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 export default function OnboardingPage() {
   const [user, setUser] = useState<any>(null)
   const [saving, setSaving] = useState(false)
+  const [referralFromUrl, setReferralFromUrl] = useState('')
   const [form, setForm] = useState({
     businessName: '',
     tradeType: 'plumber',
@@ -13,6 +14,7 @@ export default function OnboardingPage() {
     phone: '',
     email: '',
     address: '',
+    referralCode: '',
   })
 
   useEffect(() => {
@@ -22,7 +24,13 @@ export default function OnboardingPage() {
       setUser(user)
       setForm(f => ({ ...f, email: user.email || '' }))
 
-      // Check if user already has a business — skip onboarding
+      const params = new URLSearchParams(window.location.search)
+      const ref = params.get('ref')
+      if (ref) {
+        setReferralFromUrl(ref.toUpperCase())
+        setForm(f => ({ ...f, referralCode: ref.toUpperCase() }))
+      }
+
       const { data: existing } = await supabase
         .from('businesses')
         .select('id')
@@ -35,11 +43,32 @@ export default function OnboardingPage() {
     init()
   }, [])
 
+  const generateReferralCode = (businessName: string, userId: string) => {
+    const namePart = businessName.replace(/[^a-zA-Z]/g, '').slice(0, 6).toUpperCase()
+    const idPart = userId.slice(0, 4).toUpperCase()
+    return `SHQ-${namePart}${idPart}`
+  }
+
   const saveBusiness = async () => {
     if (!user) return
     setSaving(true)
     try {
-      const { error } = await supabase.from('businesses').insert({
+      const referralCode = generateReferralCode(form.businessName, user.id)
+      let referredByBusinessId: string | null = null
+
+      if (form.referralCode.trim()) {
+        const { data: referrer } = await supabase
+          .from('businesses')
+          .select('id')
+          .eq('referral_code', form.referralCode.trim().toUpperCase())
+          .single()
+
+        if (referrer) {
+          referredByBusinessId = referrer.id
+        }
+      }
+
+      const { data: newBiz, error } = await supabase.from('businesses').insert({
         user_id: user.id,
         business_name: form.businessName,
         trade_type: form.tradeType,
@@ -47,10 +76,32 @@ export default function OnboardingPage() {
         phone: form.phone || null,
         email: form.email || null,
         address: form.address || null,
-      })
+        referral_code: referralCode,
+        referred_by: form.referralCode.trim().toUpperCase() || null,
+      }).select('id').single()
+
       if (error) throw error
 
-      // Send welcome email (don't block redirect if it fails)
+      // BETA PHASE: Referrer gets 1 week free (stackable). New user gets nothing.
+      if (referredByBusinessId && newBiz) {
+        await supabase.from('referrals').insert({
+          referrer_business_id: referredByBusinessId,
+          referred_business_id: newBiz.id,
+          status: 'completed',
+        })
+
+        const { data: referrerBiz } = await supabase
+          .from('businesses')
+          .select('beta_weeks_earned')
+          .eq('id', referredByBusinessId)
+          .single()
+
+        await supabase
+          .from('businesses')
+          .update({ beta_weeks_earned: (referrerBiz?.beta_weeks_earned || 0) + 1 })
+          .eq('id', referredByBusinessId)
+      }
+
       fetch('/api/send-welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,6 +130,14 @@ export default function OnboardingPage() {
         </div>
         <h1 className="text-3xl font-bold text-white mb-2">Let's set up your business</h1>
         <p className="text-gray-400 mb-8">Quick one-time setup. We'll save these details so you never have to retype them on a quote again.</p>
+
+        {referralFromUrl && (
+          <div className="bg-emerald-900 border border-emerald-700 rounded-lg p-4 mb-6">
+            <p className="text-emerald-300 text-sm">
+              🎉 You've been referred by <strong>{referralFromUrl}</strong>. Welcome aboard!
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -157,6 +216,18 @@ export default function OnboardingPage() {
               className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
               placeholder="e.g. 123 Main St, Parramatta NSW 2150"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Referral Code <span className="text-gray-600">(optional)</span></label>
+            <input
+              type="text"
+              value={form.referralCode}
+              onChange={(e) => setForm({...form, referralCode: e.target.value.toUpperCase()})}
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 font-mono"
+              placeholder="e.g. SHQ-XXXXXX"
+            />
+            <p className="text-xs text-gray-600 mt-1">Got a code from a mate? Enter it so they get rewarded.</p>
           </div>
 
           <button
