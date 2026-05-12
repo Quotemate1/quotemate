@@ -102,7 +102,127 @@ export default function HomePage() {
         </section>
 
         <section className="border-t border-gray-800 py-24 px-8">
-          <h2 className="text-3xl font-bold mb-12">Built for every trade</h2>
+          <h2 className="text-3xl font-bold mb-12"><section className="border-t border-gray-800 py-24 px-8">
+          <div className="max-w-5xl">
+            <div className="inline-block px-3 py-1 bg-emerald-900 text-emerald-400 text-xs font-semibold rounded-full mb-4 tracking-wide uppercase">
+              What tradies are saying
+            </div>
+            <h2 className="text-3xl font-bold mb-12">Built by tradies who'd rather be on the tools.</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "Used to spend an hour every night writing quotes. Now I do them in 60 seconds on my smoko break.
+                  Won 3 jobs last week from the auto follow-up alone — customers I would've forgotten about."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">DM</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Dave M.</p>
+                    <p className="text-gray-500 text-xs">Plumber · Sydney</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "The auto follow-ups are the real game changer. Half my customers used to ghost me after I sent a quote.
+                  Now I'm winning jobs I would have lost. SmokoHQ pays for itself ten times over."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">JT</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Jamie T.</p>
+                    <p className="text-gray-500 text-xs">Electrician · Brisbane</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "My quotes look way more professional now. Customers always comment on it. Closing rate went from
+                  about 40% to nearly 70% — the AI just writes them better than I do."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">SK</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Steve K.</p>
+                    <p className="text-gray-500 text-xs">Carpenter · Melbourne</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "Was sceptical about AI doing my quotes but it's actually really good. Captures the details I would've
+                  forgotten. The PDF download is mint — customers love it."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">MR</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Matt R.</p>
+                    <p className="text-gray-500 text-xs">Painter · Perth</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "Saved line items are a lifesaver. I do the same 5 things every day — service call, hourly rate, after-hours.
+                  Now I just tap and they're in. Quote done before I leave the driveway."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">AC</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Andy C.</p>
+                    <p className="text-gray-500 text-xs">HVAC · Gold Coast</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex flex-col">
+                <div className="flex gap-1 mb-4 text-emerald-400 text-lg">★★★★★</div>
+                <p className="text-gray-300 mb-6 flex-1 leading-relaxed">
+                  "The dashboard showing my conversion rate was a wake-up call. I was losing 60% of jobs and didn't even know.
+                  Now I can actually see what's working. Solid bit of kit."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-900 flex items-center justify-center text-emerald-400 font-bold">RW</div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">Ryan W.</p>
+                    <p className="text-gray-500 text-xs">Tiler · Adelaide</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center border-t border-gray-800 pt-12">
+              <div>
+                <div className="text-3xl font-bold text-emerald-400 mb-1">60 sec</div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Avg time to send a quote</p>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-emerald-400 mb-1">2.5x</div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">More quotes won per month</p>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-emerald-400 mb-1">$0</div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Spent on unpaid admin time</p>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-emerald-400 mb-1">7 days</div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Free trial · cancel anytime</p>
+              </div>
+            </div>
+          </div>
+        </section>Built for every trade</h2>
           <div className="flex flex-wrap gap-3">
             {['Plumbers', 'Electricians', 'Builders', 'Painters', 'Carpenters', 'Landscapers', 'Tilers', 'Roofers', 'Concreters', 'Fencers', 'Cleaners', 'HVAC'].map(trade => (
               <span key={trade} className="px-4 py-2 bg-gray-900 border border-gray-800 rounded-full text-sm text-gray-300">{trade}</span>
