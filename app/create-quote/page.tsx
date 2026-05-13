@@ -21,6 +21,8 @@ export default function CreateQuotePage() {
   const [planInfo, setPlanInfo] = useState<{ plan: string, used: number, limit: number, canCreate: boolean }>({
     plan: 'trial', used: 0, limit: 20, canCreate: true
   })
+  const [marketCheck, setMarketCheck] = useState<{ [key: number]: any }>({})
+  const [checkingMarket, setCheckingMarket] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     businessName: '',
@@ -55,7 +57,6 @@ export default function CreateQuotePage() {
           tradeType: business.trade_type || 'plumber',
         }))
 
-        // Check if we need to reset monthly quote count
         const resetDate = business.quote_count_reset_at ? new Date(business.quote_count_reset_at) : new Date()
         const now = new Date()
         const daysSinceReset = (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -73,7 +74,7 @@ export default function CreateQuotePage() {
         const plan = business.subscription_plan || 'trial'
         const isActive = business.subscription_status === 'active' || business.subscription_status === 'trialing'
 
-        let limit = 2 // No subscription = 2 free quotes lifetime
+        let limit = 2
         if (plan === 'pro' && isActive) limit = 999999
         else if (plan === 'starter' && isActive) limit = 20
         else if (business.subscription_status === 'trialing') limit = 20
@@ -123,6 +124,40 @@ export default function CreateQuotePage() {
     if (lineItems.length > 1) {
       setLineItems(lineItems.filter((_, i) => i !== index))
     }
+  }
+
+  const checkMarketPrice = async (index: number) => {
+    const item = lineItems[index]
+    if (!item.description.trim()) {
+      alert('Add a description first so we know what to check.')
+      return
+    }
+    setCheckingMarket(index)
+    try {
+      const res = await fetch('/api/market-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: item.description,
+          tradeType: form.tradeType,
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMarketCheck({ ...marketCheck, [index]: data.result })
+      } else {
+        alert('Market check failed: ' + (data.error || 'Try again'))
+      }
+    } catch (error) {
+      alert('Error checking market price')
+    }
+    setCheckingMarket(null)
+  }
+
+  const closeMarketCheck = (index: number) => {
+    const updated = { ...marketCheck }
+    delete updated[index]
+    setMarketCheck(updated)
   }
 
   const subtotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
@@ -576,16 +611,64 @@ export default function CreateQuotePage() {
         {step === 2 && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Line Items & Pricing</h2>
-            <p className="text-gray-400 mb-8">Add what you're charging for. GST will be calculated automatically.</p>
+            <p className="text-gray-400 mb-8">Add what you're charging for. Hit 🔍 Check market price for an AI estimate of typical Aussie rates.</p>
+
             <div className="space-y-3 mb-3">
               {lineItems.map((item, index) => (
-                <div key={index} className="flex gap-3">
-                  <input type="text" value={item.description} onChange={(e) => { updateLineItem(index, 'description', e.target.value); setErrors({...errors, lineItems: ''}) }} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Supply & install Rinnai 26L" />
-                  <input type="number" value={item.amount} onChange={(e) => { updateLineItem(index, 'amount', e.target.value); setErrors({...errors, lineItems: ''}) }} className="w-32 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="$ Amount" />
-                  <button onClick={() => removeLineItem(index)} className="px-3 text-gray-500 hover:text-red-400 transition-colors">✕</button>
+                <div key={index}>
+                  <div className="flex gap-3">
+                    <input type="text" value={item.description} onChange={(e) => { updateLineItem(index, 'description', e.target.value); setErrors({...errors, lineItems: ''}) }} className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Supply & install Rinnai 26L" />
+                    <input type="number" value={item.amount} onChange={(e) => { updateLineItem(index, 'amount', e.target.value); setErrors({...errors, lineItems: ''}) }} className="w-32 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500" placeholder="$ Amount" />
+                    <button onClick={() => removeLineItem(index)} className="px-3 text-gray-500 hover:text-red-400 transition-colors">✕</button>
+                  </div>
+
+                  <div className="mt-1 ml-1">
+                    {!marketCheck[index] && (
+                      <button
+                        onClick={() => checkMarketPrice(index)}
+                        disabled={checkingMarket === index || !item.description.trim()}
+                        className="text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        {checkingMarket === index ? '🔍 Checking market...' : '🔍 Check market price'}
+                      </button>
+                    )}
+
+                    {marketCheck[index] && (() => {
+                      const mc = marketCheck[index]
+                      const userAmount = parseFloat(item.amount) || 0
+                      const isBelow = userAmount > 0 && userAmount < mc.lowPrice
+                      const isAbove = userAmount > 0 && userAmount > mc.highPrice
+                      const isInRange = userAmount >= mc.lowPrice && userAmount <= mc.highPrice
+                      return (
+                        <div className="mt-2 p-3 bg-gray-900 border border-emerald-800 rounded text-xs">
+                          <div className="flex items-start justify-between mb-2">
+                            <p className="text-emerald-400 font-semibold">📊 Market price check</p>
+                            <button onClick={() => closeMarketCheck(index)} className="text-gray-500 hover:text-white">✕</button>
+                          </div>
+                          <p className="text-white mb-1">
+                            Typical Aussie range: <span className="font-bold text-emerald-400">${mc.lowPrice.toLocaleString('en-AU')} – ${mc.highPrice.toLocaleString('en-AU')}</span>
+                            {mc.unit && <span className="text-gray-500"> ({mc.unit})</span>}
+                          </p>
+                          {mc.tradeRate && (
+                            <p className="text-gray-400 mb-1 text-[11px]">Trade rate: ~${mc.tradeRate}</p>
+                          )}
+                          {mc.notes && <p className="text-gray-500 text-[11px] leading-relaxed mb-2">{mc.notes}</p>}
+                          {userAmount > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-800">
+                              {isInRange && <p className="text-emerald-400 text-[11px]">✓ You're priced in the market range. Solid quote.</p>}
+                              {isBelow && <p className="text-amber-400 text-[11px]">⚠️ You're below the typical range — could be undercharging.</p>}
+                              {isAbove && <p className="text-blue-400 text-[11px]">ℹ️ Above typical range. Make sure the customer sees the value.</p>}
+                            </div>
+                          )}
+                          <p className="text-gray-600 text-[10px] mt-2 italic">AI estimate · {mc.confidence} confidence · verify with your suppliers</p>
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
+
             {errors.lineItems && <p className="text-red-400 text-xs mb-3">{errors.lineItems}</p>}
 
             <div className="flex flex-wrap gap-3 mb-8">
