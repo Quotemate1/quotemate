@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -16,6 +17,11 @@ export default function LoginPage() {
     setMessage('')
 
     if (isSignUp) {
+      if (!agreedToTerms) {
+        setMessage('You must agree to the Terms of Service and Privacy Policy to sign up.')
+        setLoading(false)
+        return
+      }
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) {
         setMessage(error.message)
@@ -30,6 +36,7 @@ export default function LoginPage() {
         window.location.href = '/onboarding'
       }
     }
+
     setLoading(false)
   }
 
@@ -72,10 +79,29 @@ export default function LoginPage() {
               />
             </div>
 
+            {isSignUp && (
+              <div className="pt-2">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-gray-700 bg-gray-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-gray-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-400 leading-relaxed group-hover:text-gray-300">
+                    I agree to the{' '}
+                    <a href="/terms" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="/privacy" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Privacy Policy</a>.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-50"
+              disabled={loading || (isSignUp && !agreedToTerms)}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
             </button>
@@ -88,7 +114,7 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-sm text-gray-500">
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
-              onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
+              onClick={() => { setIsSignUp(!isSignUp); setMessage(''); setAgreedToTerms(false) }}
               className="text-emerald-400 hover:text-emerald-300"
             >
               {isSignUp ? 'Sign in' : 'Sign up'}

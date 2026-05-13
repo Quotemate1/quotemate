@@ -59,6 +59,19 @@ export default function PublicQuotePage() {
         customer_responded_at: new Date().toISOString(),
       })
       .eq('public_token', token)
+
+    // Notify tradie via email (don't block if it fails)
+    if (quote?.id) {
+      fetch('/api/notify-tradie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: quote.id,
+          response: 'accepted',
+        }),
+      }).catch(() => {})
+    }
+
     setResponded('accepted')
     setResponding(false)
   }
@@ -74,6 +87,20 @@ export default function PublicQuotePage() {
         customer_responded_at: new Date().toISOString(),
       })
       .eq('public_token', token)
+
+    // Notify tradie via email
+    if (quote?.id) {
+      fetch('/api/notify-tradie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: quote.id,
+          response: 'declined',
+          message: changesMessage,
+        }),
+      }).catch(() => {})
+    }
+
     setResponded('declined')
     setResponding(false)
   }
