@@ -31,11 +31,7 @@ export default function OnboardingPage() {
         setForm(f => ({ ...f, referralCode: ref.toUpperCase() }))
       }
 
-      const { data: existing } = await supabase
-        .from('businesses')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
+      const { data: existing } = await supabase.from('businesses').select('id').eq('user_id', user.id).single()
       if (existing) {
         window.location.href = '/dashboard'
       }
@@ -46,7 +42,7 @@ export default function OnboardingPage() {
   const generateReferralCode = (businessName: string, userId: string) => {
     const namePart = businessName.replace(/[^a-zA-Z]/g, '').slice(0, 6).toUpperCase()
     const idPart = userId.slice(0, 4).toUpperCase()
-    return `SHQ-${namePart}${idPart}`
+    return 'SHQ-' + namePart + idPart
   }
 
   const saveBusiness = async () => {
@@ -62,10 +58,7 @@ export default function OnboardingPage() {
           .select('id')
           .eq('referral_code', form.referralCode.trim().toUpperCase())
           .single()
-
-        if (referrer) {
-          referredByBusinessId = referrer.id
-        }
+        if (referrer) referredByBusinessId = referrer.id
       }
 
       const { data: newBiz, error } = await supabase.from('businesses').insert({
@@ -82,7 +75,6 @@ export default function OnboardingPage() {
 
       if (error) throw error
 
-      // BETA PHASE: Referrer gets 1 week free (stackable). New user gets nothing.
       if (referredByBusinessId && newBiz) {
         await supabase.from('referrals').insert({
           referrer_business_id: referredByBusinessId,
@@ -105,10 +97,7 @@ export default function OnboardingPage() {
       fetch('/api/send-welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user.email,
-          name: form.businessName,
-        }),
+        body: JSON.stringify({ email: user.email, name: form.businessName }),
       }).catch(() => {})
 
       window.location.href = '/dashboard'
@@ -119,45 +108,35 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      <nav className="border-b border-gray-800 px-6 py-4">
+    <div className="min-h-screen bg-stone-950 flex flex-col">
+      <nav className="border-b border-stone-800 bg-stone-900 px-6 py-4">
         <span className="text-xl font-bold text-white">SmokoHQ</span>
       </nav>
 
       <main className="flex-1 max-w-xl mx-auto px-6 py-12 w-full">
-        <div className="inline-block px-3 py-1 bg-emerald-900 text-emerald-400 text-xs font-semibold rounded-full mb-4 tracking-wide uppercase">
+        <div className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold rounded-full mb-4 tracking-wide uppercase">
           Welcome to SmokoHQ
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">Let's set up your business</h1>
-        <p className="text-gray-400 mb-8">Quick one-time setup. We'll save these details so you never have to retype them on a quote again.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Let&apos;s set up your business</h1>
+        <p className="text-stone-400 mb-8">Quick one-time setup. We&apos;ll save these details so you never have to retype them on a quote again.</p>
 
         {referralFromUrl && (
-          <div className="bg-emerald-900 border border-emerald-700 rounded-lg p-4 mb-6">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-6">
             <p className="text-emerald-300 text-sm">
-              🎉 You've been referred by <strong>{referralFromUrl}</strong>. Welcome aboard!
+              🎉 You have been referred by <strong>{referralFromUrl}</strong>. Welcome aboard!
             </p>
           </div>
         )}
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Business Name *</label>
-            <input
-              type="text"
-              value={form.businessName}
-              onChange={(e) => setForm({...form, businessName: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. Smith's Plumbing"
-            />
+            <label className="block text-sm text-stone-400 mb-1">Business Name *</label>
+            <input type="text" value={form.businessName} onChange={(e) => setForm({...form, businessName: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Smith&apos;s Plumbing" />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Trade Type *</label>
-            <select
-              value={form.tradeType}
-              onChange={(e) => setForm({...form, tradeType: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-emerald-500"
-            >
+            <label className="block text-sm text-stone-400 mb-1">Trade Type *</label>
+            <select value={form.tradeType} onChange={(e) => setForm({...form, tradeType: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white focus:outline-none focus:border-emerald-500">
               <option value="plumber">Plumber</option>
               <option value="electrician">Electrician</option>
               <option value="builder">Builder</option>
@@ -175,70 +154,36 @@ export default function OnboardingPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">ABN <span className="text-gray-600">(optional)</span></label>
-            <input
-              type="text"
-              value={form.abn}
-              onChange={(e) => setForm({...form, abn: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. 12 345 678 901"
-            />
+            <label className="block text-sm text-stone-400 mb-1">ABN <span className="text-stone-600">(optional)</span></label>
+            <input type="text" value={form.abn} onChange={(e) => setForm({...form, abn: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 12 345 678 901" />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Phone <span className="text-gray-600">(optional)</span></label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({...form, phone: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. 0412 345 678"
-            />
+            <label className="block text-sm text-stone-400 mb-1">Phone <span className="text-stone-600">(optional)</span></label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 0412 345 678" />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Business Email <span className="text-gray-600">(optional)</span></label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({...form, email: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. quotes@smithsplumbing.com.au"
-            />
+            <label className="block text-sm text-stone-400 mb-1">Business Email <span className="text-stone-600">(optional)</span></label>
+            <input type="email" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. quotes@smithsplumbing.com.au" />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Business Address <span className="text-gray-600">(optional)</span></label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => setForm({...form, address: e.target.value})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. 123 Main St, Parramatta NSW 2150"
-            />
+            <label className="block text-sm text-stone-400 mb-1">Business Address <span className="text-stone-600">(optional)</span></label>
+            <input type="text" value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 123 Main St, Parramatta NSW 2150" />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Referral Code <span className="text-gray-600">(optional)</span></label>
-            <input
-              type="text"
-              value={form.referralCode}
-              onChange={(e) => setForm({...form, referralCode: e.target.value.toUpperCase()})}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 font-mono"
-              placeholder="e.g. SHQ-XXXXXX"
-            />
-            <p className="text-xs text-gray-600 mt-1">Got a code from a mate? Enter it so they get rewarded.</p>
+            <label className="block text-sm text-stone-400 mb-1">Referral Code <span className="text-stone-600">(optional)</span></label>
+            <input type="text" value={form.referralCode} onChange={(e) => setForm({...form, referralCode: e.target.value.toUpperCase()})} className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500 font-mono" placeholder="e.g. SHQ-XXXXXX" />
+            <p className="text-xs text-stone-600 mt-1">Got a code from a mate? Enter it so they get rewarded.</p>
           </div>
 
-          <button
-            onClick={saveBusiness}
-            disabled={saving || !form.businessName}
-            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Continue to Dashboard →'}
+          <button onClick={saveBusiness} disabled={saving || !form.businessName} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20">
+            {saving ? 'Saving...' : 'Continue to Dashboard'}
           </button>
 
-          <p className="text-xs text-gray-600 text-center mt-2">You can always update these details later from your dashboard.</p>
+          <p className="text-xs text-stone-600 text-center mt-2">You can always update these details later from your dashboard.</p>
         </div>
       </main>
     </div>
