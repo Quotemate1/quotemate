@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
               <li>Click "Generate Quote with AI"</li>
               <li>Email or download the PDF</li>
             </ol>
-            <a href="https://quotemate-eta.vercel.app/create-quote" style="display:inline-block;background:#10b981;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px;">Create Your First Quote →</a>
+            <a href="https://smokohq.app/create-quote" style="display:inline-block;background:#10b981;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px;">Create Your First Quote →</a>
           </div>
 
           <h3 style="color:#1a1a2e;">What makes SmokoHQ different</h3>
@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
 
           <h3 style="color:#1a1a2e;">Quick tips</h3>
           <ul style="padding-left:20px;">
-            <li><strong>Set up your saved items first</strong> — common things you charge for. Saves time on every future quote. <a href="https://quotemate-eta.vercel.app/settings" style="color:#10b981;">Go to Settings →</a></li>
+            <li><strong>Set up your saved items first</strong> — common things you charge for. Saves time on every future quote. <a href="https://smokohq.app/settings" style="color:#10b981;">Go to Settings →</a></li>
             <li><strong>The AI is good but check it</strong> — click any text on the quote preview to edit it before sending.</li>
-            <li><strong>Free plan = 2 quotes</strong> — to keep going, start your 7-day free trial of Starter or Pro. <a href="https://quotemate-eta.vercel.app/pricing" style="color:#10b981;">View pricing →</a></li>
+            <li><strong>Free plan = 2 quotes</strong> — to keep going, start your 7-day free trial of Starter or Pro. <a href="https://smokohq.app/pricing" style="color:#10b981;">View pricing →</a></li>
           </ul>
 
           <p>Got questions? Just reply to this email — I read every one.</p>
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
           <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:12px;color:#999;text-align:center;">
             SmokoHQ — Built in Australia for Australian tradies<br>
-            <a href="https://quotemate-eta.vercel.app" style="color:#999;">quotemate-eta.vercel.app</a>
+            <a href="https://smokohq.app" style="color:#999;">smokohq.app</a>
           </div>
         </div>
       </div>

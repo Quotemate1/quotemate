@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (quoteData?.public_token) {
-        quoteLink = `https://quotemate-eta.vercel.app/quote/${quoteData.public_token}`
+        quoteLink = `https://smokohq.app/quote/${quoteData.public_token}`
       }
     }
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
           <p style="font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;margin-top:24px;">
             Quoted with SmokoHQ — AI quotes for Aussie tradies<br>
-            <a href="https://quotemate-eta.vercel.app" style="color:#999;">quotemate-eta.vercel.app</a>
+            <a href="https://smokohq.app" style="color:#999;">smokohq.app</a>
           </p>
         </div>
       </div>

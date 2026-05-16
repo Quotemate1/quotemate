@@ -95,12 +95,12 @@ export async function POST(req: NextRequest) {
           `}
 
           <div style="text-align:center;margin:32px 0;">
-            <a href="https://quotemate-eta.vercel.app/dashboard" style="display:inline-block;background:#10b981;color:white;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;">View Dashboard →</a>
+            <a href="https://smokohq.app/dashboard" style="display:inline-block;background:#10b981;color:white;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;">View Dashboard →</a>
           </div>
 
           <p style="font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;margin-top:24px;text-align:center;">
             SmokoHQ — AI quotes for Aussie tradies<br>
-            <a href="https://quotemate-eta.vercel.app" style="color:#999;">quotemate-eta.vercel.app</a>
+            <a href="https://smokohq.app" style="color:#999;">smokohq.app</a>
           </p>
         </div>
       </div>

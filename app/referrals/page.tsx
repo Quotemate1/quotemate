@@ -29,14 +29,14 @@ export default function ReferralsPage() {
   }
 
   const copyLink = () => {
-    const link = 'https://quotemate-eta.vercel.app/login?ref=' + business.referral_code
+    const link = 'https://smokohq.app/login?ref=' + business.referral_code
     navigator.clipboard.writeText(link)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const shareViaText = () => {
-    const link = 'https://quotemate-eta.vercel.app/login?ref=' + business.referral_code
+    const link = 'https://smokohq.app/login?ref=' + business.referral_code
     const message = "G'day mate, you should try SmokoHQ - AI quoting for tradies. Sign up with my code: " + link
     window.location.href = 'sms:?body=' + encodeURIComponent(message)
   }
@@ -49,7 +49,7 @@ export default function ReferralsPage() {
     )
   }
 
-  const link = 'https://quotemate-eta.vercel.app/login?ref=' + business.referral_code
+  const link = 'https://smokohq.app/login?ref=' + business.referral_code
   const weeksEarned = business?.beta_weeks_earned || 0
 
   return (

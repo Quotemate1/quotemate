@@ -133,7 +133,7 @@ export default function PublicQuotePage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="bg-gray-900 text-white text-center py-3 px-4 text-sm">
-        Quote from <strong>{business?.business_name}</strong> · Powered by <a href="https://quotemate-eta.vercel.app" className="text-emerald-400 hover:underline">SmokoHQ</a>
+        Quote from <strong>{business?.business_name}</strong> · Powered by <a href="https://smokohq.app" className="text-emerald-400 hover:underline">SmokoHQ</a>
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-8 md:py-12">
@@ -304,7 +304,7 @@ export default function PublicQuotePage() {
         </div>
 
         <p className="text-center text-gray-500 text-xs mt-6">
-          Quoted with <a href="https://quotemate-eta.vercel.app" className="text-emerald-600 hover:underline">SmokoHQ</a> — AI quotes for Aussie tradies
+          Quoted with <a href="https://smokohq.app" className="text-emerald-600 hover:underline">SmokoHQ</a> — AI quotes for Aussie tradies
         </p>
       </main>
     </div>
