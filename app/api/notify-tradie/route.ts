@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     `
 
     const { data, error } = await resend.emails.send({
-      from: 'SmokoHQ <onboarding@resend.dev>',
+      from: 'SmokoHQ <quotes@smokohq.app>',
       to: tradieEmail,
       subject: subject,
       html: html,

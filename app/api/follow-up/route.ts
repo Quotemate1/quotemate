@@ -64,7 +64,7 @@ export async function GET() {
         `
 
         const { error } = await resend.emails.send({
-          from: 'SmokoHQ <onboarding@resend.dev>',
+          from: 'SmokoHQ <quotes@smokohq.app>',
           to: customerEmail,
           subject: `Following up on your quote from ${businessName}`,
           html: html,
@@ -101,7 +101,7 @@ export async function GET() {
         `
 
         const { error } = await resend.emails.send({
-          from: 'SmokoHQ <onboarding@resend.dev>',
+          from: 'SmokoHQ <quotes@smokohq.app>',
           to: customerEmail,
           subject: `Quick follow-up — your quote from ${businessName}`,
           html: html,

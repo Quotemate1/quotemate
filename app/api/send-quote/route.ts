@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     `
 
     const { data, error } = await resend.emails.send({
-      from: `${businessName} <onboarding@resend.dev>`,
+      from: `${businessName} <quotes@smokohq.app>`,
       to: customerEmail,
       subject: `Quote from ${businessName}`,
       html: html,
