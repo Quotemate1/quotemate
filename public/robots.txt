@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Block sensitive routes
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /create-quote
+Disallow: /settings
+Disallow: /referrals
+Disallow: /onboarding
+
+# Sitemap location
+Sitemap: https://smokohq.app/sitemap.xml
