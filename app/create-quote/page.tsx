@@ -517,7 +517,13 @@ export default function CreateQuotePage() {
         {step === 3 && generatedQuote && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Your Quote is Ready!</h2>
-            <p className="text-stone-400 mb-2">Click any text below to edit it before sending.</p>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-start gap-3">
+              <span className="text-2xl">✏️</span>
+              <div>
+                <p className="text-amber-300 font-bold text-sm">You can edit anything below!</p>
+                <p className="text-amber-200/70 text-xs mt-1">Click on any text (greeting, scope of work, terms, line items) to change it before sending. Hover to see the edit hint.</p>
+              </div>
+            </div>
             <p className="text-stone-500 text-sm mb-8">The AI is good but not perfect - make it your own.</p>
             {saved && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-6 text-emerald-300 text-sm">
