@@ -11,6 +11,10 @@ export async function POST(req: NextRequest) {
       customerName,
       customerEmail,
       businessName,
+      businessAbn,
+      businessPhone,
+      businessEmail,
+      businessAddress,
       tradeType,
       jobAddress,
       quote,
@@ -20,7 +24,6 @@ export async function POST(req: NextRequest) {
       total,
       quoteId,
     } = body
-
     // Get the public_token for this quote
     let quoteLink = ''
     if (quoteId) {
@@ -40,10 +43,15 @@ export async function POST(req: NextRequest) {
     ).join('')
 
     const html = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
-        <div style="background:#1a1a2e;color:white;padding:32px;text-align:center;">
+      <div style="background:#1a1a2e;color:white;padding:32px;text-align:center;">
           <h1 style="margin:0;font-size:28px;">${businessName}</h1>
           <p style="margin:8px 0 0;opacity:0.7;text-transform:capitalize;">${tradeType}</p>
+          <div style="margin-top:14px;font-size:12px;opacity:0.75;line-height:1.7;">
+            ${businessAbn ? `<div>ABN: ${businessAbn}</div>` : ''}
+            ${businessPhone ? `<div>Phone: ${businessPhone}</div>` : ''}
+            ${businessEmail ? `<div>Email: ${businessEmail}</div>` : ''}
+            ${businessAddress ? `<div>${businessAddress}</div>` : ''}
+          </div>
         </div>
         <div style="padding:32px;line-height:1.6;">
           <p>G'day ${customerName},</p>

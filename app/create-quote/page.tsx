@@ -27,6 +27,10 @@ export default function CreateQuotePage() {
   const [form, setForm] = useState({
     businessName: '',
     tradeType: 'plumber',
+    businessAbn: '',
+    businessPhone: '',
+    businessEmail: '',
+    businessAddress: '',
     customerName: '',
     customerEmail: '',
     customerPhone: '',
@@ -43,11 +47,19 @@ export default function CreateQuotePage() {
       setUser(user)
       const { data: business } = await supabase
         .from('businesses')
-        .select('id, business_name, trade_type, subscription_status, subscription_plan, quote_count_this_month, quote_count_reset_at')
+        .select('id, business_name, trade_type, abn, phone, email, address, subscription_status, subscription_plan, quote_count_this_month, quote_count_reset_at')
         .eq('user_id', user.id)
         .single()
       if (business) {
-        setForm(f => ({ ...f, businessName: business.business_name || '', tradeType: business.trade_type || 'plumber' }))
+        setForm(f => ({
+          ...f,
+          businessName: business.business_name || '',
+          tradeType: business.trade_type || 'plumber',
+          businessAbn: business.abn || '',
+          businessPhone: business.phone || '',
+          businessEmail: business.email || '',
+          businessAddress: business.address || '',
+        }))
         const resetDate = business.quote_count_reset_at ? new Date(business.quote_count_reset_at) : new Date()
         const daysSinceReset = (new Date().getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24)
         let usedCount = business.quote_count_this_month || 0
@@ -203,6 +215,7 @@ export default function CreateQuotePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: form.customerName, customerEmail: form.customerEmail, businessName: form.businessName,
+          businessAbn: form.businessAbn, businessPhone: form.businessPhone, businessEmail: form.businessEmail, businessAddress: form.businessAddress,
           tradeType: form.tradeType, jobAddress: form.jobAddress, quote: generatedQuote,
           lineItems: lineItems.filter(i => i.description && i.amount), subtotal, gst, total, quoteId: savedQuoteId,
         })
@@ -229,6 +242,16 @@ export default function CreateQuotePage() {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
     doc.text(form.tradeType.charAt(0).toUpperCase() + form.tradeType.slice(1), 15, 27)
+
+    // Business contact details (below the header bar, right side)
+    doc.setFontSize(8)
+    doc.setTextColor(220, 220, 220)
+    let contactY = 12
+    if (form.businessAbn) { doc.text('ABN: ' + form.businessAbn, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (form.businessPhone) { doc.text('Phone: ' + form.businessPhone, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (form.businessEmail) { doc.text('Email: ' + form.businessEmail, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (form.businessAddress) { doc.text(form.businessAddress, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+
     y = 50
     doc.setTextColor(60, 60, 60)
     doc.setFontSize(10)
@@ -534,6 +557,12 @@ export default function CreateQuotePage() {
               <div className="border-b pb-4 mb-6">
                 <h3 className="text-2xl font-bold">{form.businessName}</h3>
                 <p className="text-stone-500 capitalize">{form.tradeType}</p>
+                <div className="mt-3 text-sm text-stone-600 space-y-0.5">
+                  {form.businessAbn && <p>ABN: {form.businessAbn}</p>}
+                  {form.businessPhone && <p>Phone: {form.businessPhone}</p>}
+                  {form.businessEmail && <p>Email: {form.businessEmail}</p>}
+                  {form.businessAddress && <p>{form.businessAddress}</p>}
+                </div>
               </div>
               <div className="mb-6">
                 <p className="text-stone-500 text-sm">Quote for:</p>
