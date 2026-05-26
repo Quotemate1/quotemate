@@ -16,6 +16,9 @@ export default function SettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDesc, setEditDesc] = useState('')
   const [editAmount, setEditAmount] = useState('')
+  const [profile, setProfile] = useState({ business_name: '', trade_type: 'plumber', abn: '', phone: '', email: '', address: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -26,6 +29,14 @@ export default function SettingsPage() {
     const { data: biz } = await supabase.from('businesses').select('*').eq('user_id', user.id).single()
     if (!biz) { window.location.href = '/onboarding'; return }
     setBusiness(biz)
+    setProfile({
+      business_name: biz.business_name || '',
+      trade_type: biz.trade_type || 'plumber',
+      abn: biz.abn || '',
+      phone: biz.phone || '',
+      email: biz.email || '',
+      address: biz.address || '',
+    })
     await loadItems(biz.id)
     setLoading(false)
   }
@@ -67,7 +78,23 @@ export default function SettingsPage() {
     setEditAmount('')
     await loadItems(business.id)
   }
-
+const saveProfile = async () => {
+    if (!business) return
+    setSavingProfile(true)
+    setProfileSaved(false)
+    await supabase.from('businesses').update({
+      business_name: profile.business_name,
+      trade_type: profile.trade_type,
+      abn: profile.abn || null,
+      phone: profile.phone || null,
+      email: profile.email || null,
+      address: profile.address || null,
+    }).eq('id', business.id)
+    setBusiness({ ...business, ...profile })
+    setSavingProfile(false)
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 3000)
+  }
   const loadTemplate = async () => {
     if (!business) return
     const tradeKey = business.trade_type || 'plumber'
@@ -101,7 +128,58 @@ export default function SettingsPage() {
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-        <p className="text-stone-400 mb-10">Manage your saved line items - common things you charge for that auto-load on quotes.</p>
+        <p className="text-stone-400 mb-10">Update your business details and manage your saved line items.</p>
+
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 mb-8">
+          <h2 className="text-lg font-bold text-white mb-1">Business Details</h2>
+          <p className="text-stone-500 text-sm mb-6">These details automatically appear on every quote you send (in the email, PDF and preview).</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Business Name *</label>
+              <input type="text" value={profile.business_name} onChange={(e) => setProfile({...profile, business_name: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. Smith's Plumbing" />
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Trade Type *</label>
+              <select value={profile.trade_type} onChange={(e) => setProfile({...profile, trade_type: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white focus:outline-none focus:border-emerald-500">
+                <option value="plumber">Plumber</option>
+                <option value="electrician">Electrician</option>
+                <option value="builder">Builder</option>
+                <option value="painter">Painter</option>
+                <option value="carpenter">Carpenter</option>
+                <option value="landscaper">Landscaper</option>
+                <option value="tiler">Tiler</option>
+                <option value="roofer">Roofer</option>
+                <option value="concreter">Concreter</option>
+                <option value="fencer">Fencer</option>
+                <option value="cleaner">Cleaner</option>
+                <option value="hvac">HVAC / Air Conditioning</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">ABN / Licence Number</label>
+              <input type="text" value={profile.abn} onChange={(e) => setProfile({...profile, abn: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 12 345 678 901" />
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Phone</label>
+              <input type="tel" value={profile.phone} onChange={(e) => setProfile({...profile, phone: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 0412 345 678" />
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Business Email</label>
+              <input type="email" value={profile.email} onChange={(e) => setProfile({...profile, email: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. you@yourbusiness.com.au" />
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Business Address</label>
+              <input type="text" value={profile.address} onChange={(e) => setProfile({...profile, address: e.target.value})} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="e.g. 123 Main St, Parramatta NSW 2150" />
+            </div>
+          </div>
+          <div className="mt-5 flex items-center gap-4">
+            <button onClick={saveProfile} disabled={savingProfile || !profile.business_name} className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full transition-colors disabled:opacity-30 shadow-lg shadow-emerald-500/20">
+              {savingProfile ? 'Saving...' : 'Save Business Details'}
+            </button>
+            {profileSaved && <span className="text-emerald-400 text-sm">✓ Saved</span>}
+          </div>
+        </div>
 
         {items.length === 0 && hasTemplate && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 mb-8">
