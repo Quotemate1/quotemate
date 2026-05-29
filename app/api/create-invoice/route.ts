@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     // Get the source quote
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
-      .select('*')
+      .select('*, customers(name, email, phone)')
       .eq('id', quoteId)
       .single()
 
@@ -66,9 +66,9 @@ export async function POST(req: NextRequest) {
         quote_id: quote.id,
         invoice_number: invoiceNumber,
         public_token: publicToken,
-        customer_name: quote.customer_name,
-        customer_email: quote.customer_email,
-        customer_phone: quote.customer_phone,
+        customer_name: quote.customers?.name || 'Customer',
+        customer_email: quote.customers?.email || '',
+        customer_phone: quote.customers?.phone || null,
         job_address: quote.job_address,
         scope_of_work: quote.scope_of_work,
         line_items: quote.line_items,
