@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 export default function PublicInvoicePage() {
   const params = useParams()
@@ -31,6 +33,112 @@ export default function PublicInvoicePage() {
     setLoading(false)
   }
 
+  const downloadPDF = () => {
+    if (!invoice || !business) return
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    // Header bar (dark navy)
+    doc.setFillColor(26, 26, 46)
+    doc.rect(0, 0, pageWidth, 40, 'F')
+
+    // TAX INVOICE label
+    doc.setTextColor(251, 191, 36)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TAX INVOICE', 15, 12)
+
+    // Business name
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text(business.business_name, 15, 22)
+
+    // Trade type
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(business.trade_type.charAt(0).toUpperCase() + business.trade_type.slice(1), 15, 30)
+
+    // Business contact (right side of header)
+    doc.setFontSize(8)
+    doc.setTextColor(220, 220, 220)
+    let contactY = 10
+    if (business.abn) { doc.text('ABN: ' + business.abn, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (business.phone) { doc.text('Phone: ' + business.phone, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (business.email) { doc.text('Email: ' + business.email, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+    if (business.address) { doc.text(business.address, pageWidth - 15, contactY, { align: 'right' }); contactY += 5 }
+
+    // Invoice metadata
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Invoice #: ' + invoice.invoice_number, 15, 55)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Issued: ' + new Date(invoice.created_at).toLocaleDateString('en-AU'), 15, 62)
+    doc.text('Due: ' + new Date(invoice.due_date).toLocaleDateString('en-AU'), 15, 69)
+
+    // Customer
+    doc.setFont('helvetica', 'bold')
+    doc.text('Invoice To:', pageWidth - 80, 55)
+    doc.setFont('helvetica', 'normal')
+    doc.text(invoice.customer_name, pageWidth - 80, 62)
+    if (invoice.customer_email) doc.text(invoice.customer_email, pageWidth - 80, 69)
+    if (invoice.job_address) doc.text(invoice.job_address, pageWidth - 80, 76)
+
+    let y = 90
+
+    // Scope of work
+    if (invoice.scope_of_work) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.text('Work Completed', 15, y)
+      y += 7
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      const lines = doc.splitTextToSize(invoice.scope_of_work, pageWidth - 30)
+      doc.text(lines, 15, y)
+      y += lines.length * 5 + 6
+    }
+
+    // Line items table
+    autoTable(doc, {
+      startY: y,
+      head: [['Description', 'Amount']],
+      body: (invoice.line_items || []).map((item: any) => [item.description, '$' + parseFloat(item.amount).toFixed(2)]),
+      foot: [
+        ['Subtotal', '$' + parseFloat(invoice.subtotal).toFixed(2)],
+        ['GST (10%)', '$' + parseFloat(invoice.gst).toFixed(2)],
+        ['Total Due', '$' + parseFloat(invoice.total).toFixed(2)],
+      ],
+      headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' },
+      columnStyles: { 1: { halign: 'right' } },
+      margin: { left: 15, right: 15 },
+    })
+
+    const finalY = (doc as any).lastAutoTable.finalY + 10
+
+    // Payment terms box
+    doc.setFillColor(255, 251, 235)
+    doc.setDrawColor(253, 230, 138)
+    doc.rect(15, finalY, pageWidth - 30, 25, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(146, 64, 14)
+    doc.text('PAYMENT TERMS', 20, finalY + 7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(9)
+    doc.text(`Payment of $${parseFloat(invoice.total).toFixed(2)} is due within ${invoice.payment_terms_days} days.`, 20, finalY + 14)
+    doc.text(`Due by ${new Date(invoice.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}.`, 20, finalY + 20)
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text('Invoiced with SmokoHQ - smokohq.app', pageWidth / 2, 285, { align: 'center' })
+
+    doc.save(`${invoice.invoice_number}-${invoice.customer_name.replace(/\s+/g, '-')}.pdf`)
+  }
   const handleMarkPaid = async () => {
     if (!confirm('Mark this invoice as paid? Only do this if payment has been received.')) return
     setMarkingPaid(true)
@@ -158,18 +266,27 @@ export default function PublicInvoicePage() {
               </p>
             </div>
 
-            {!isPaid && (
-              <div className="mt-6 text-center">
-                <p className="text-gray-500 text-xs mb-3">For the business owner:</p>
-                <button
-                  onClick={handleMarkPaid}
-                  disabled={markingPaid}
-                  className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {markingPaid ? 'Marking...' : '✓ Mark as Paid'}
-                </button>
-              </div>
-            )}
+            <div className="mt-6 text-center space-y-3">
+              <button
+                onClick={downloadPDF}
+                className="w-full sm:w-auto px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-lg transition-colors"
+              >
+                📄 Download PDF
+              </button>
+
+              {!isPaid && (
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-gray-500 text-xs mb-3">For the business owner:</p>
+                  <button
+                    onClick={handleMarkPaid}
+                    disabled={markingPaid}
+                    className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {markingPaid ? 'Marking...' : '✓ Mark as Paid'}
+                  </button>
+                </div>
+              )}
+            </div>
 
           </div>
 
