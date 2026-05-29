@@ -94,6 +94,12 @@ export default function DashboardPage() {
         return
       }
       setCreatedInvoice(data.invoice)
+      // Auto-send invoice email to customer (background, don't block UI)
+      fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: data.invoice.id }),
+      }).catch(() => {})
     } catch (error: any) {
       alert('Error: ' + error.message)
     }
@@ -478,7 +484,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="text-center mb-6">
-                  <div className="inline-block px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold rounded-full mb-4">✓ Invoice Created</div>
+                  <div className="inline-block px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold rounded-full mb-4">✓ Invoice Created &amp; Emailed</div>
                   <p className="text-2xl font-bold text-white mb-1">{createdInvoice.invoice_number}</p>
                   <p className="text-stone-400 text-sm">Total: ${parseFloat(createdInvoice.total).toFixed(2)}</p>
                   <p className="text-stone-500 text-xs mt-2">Due {new Date(createdInvoice.due_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
