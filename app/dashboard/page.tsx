@@ -7,6 +7,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [business, setBusiness] = useState<any>(null)
   const [quotes, setQuotes] = useState<any>([])
+  const [invoices, setInvoices] = useState<any[]>([])
   const [stats, setStats] = useState({ total: 0, sent: 0, revenue: 0, won: 0, lost: 0, revenueWon: 0, conversionRate: 0 })
   const [loading, setLoading] = useState(true)
   const [selectedQuote, setSelectedQuote] = useState<any>(null)
@@ -39,7 +40,13 @@ export default function DashboardPage() {
       .select('*, customers(name, email)')
       .eq('business_id', biz.id)
       .order('created_at', { ascending: false })
+const { data: invoicesData } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('business_id', biz.id)
+      .order('created_at', { ascending: false })
 
+    if (invoicesData) setInvoices(invoicesData)
     if (quotesData) {
       setQuotes(quotesData)
       const total = quotesData.length
@@ -270,6 +277,64 @@ export default function DashboardPage() {
                 <span className="text-stone-500 text-sm">{new Date(quote.created_at).toLocaleDateString('en-AU')}</span>
               </button>
             ))}
+          </div>
+        )}
+        {invoices.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-end justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-white">Invoices</h3>
+                <p className="text-stone-400 text-sm">Track who's paid and who still owes you.</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-stone-500 uppercase tracking-wider">Outstanding</p>
+                <p className="text-2xl font-bold text-amber-400">
+                  ${invoices.filter((i: any) => i.status !== 'paid').reduce((sum: number, i: any) => sum + parseFloat(i.total || 0), 0).toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#1a1d24] border border-stone-800 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-5 gap-4 px-6 py-3 border-b border-stone-800 text-xs text-stone-500 uppercase tracking-wider font-semibold">
+                <span>Invoice #</span>
+                <span>Customer</span>
+                <span>Total</span>
+                <span>Status</span>
+                <span>Due Date</span>
+              </div>
+              {invoices.map((invoice: any) => {
+                const isOverdue = invoice.status !== 'paid' && new Date(invoice.due_date) < new Date()
+                const realStatus = isOverdue ? 'overdue' : invoice.status
+                const statusStyle = {
+                  paid: 'text-emerald-400 bg-emerald-950',
+                  unpaid: 'text-amber-400 bg-amber-950',
+                  overdue: 'text-red-400 bg-red-950',
+                }[realStatus as 'paid' | 'unpaid' | 'overdue'] || 'text-stone-400 bg-stone-800'
+
+                return (
+                  <a
+                    key={invoice.id}
+                    href={`/invoice/${invoice.public_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid grid-cols-5 gap-4 px-6 py-4 border-b border-stone-800 hover:bg-stone-800/50 transition-colors items-center cursor-pointer"
+                  >
+                    <span className="text-white font-mono text-sm">{invoice.invoice_number}</span>
+                    <div>
+                      <p className="text-white text-sm">{invoice.customer_name}</p>
+                      <p className="text-stone-500 text-xs">{invoice.customer_email}</p>
+                    </div>
+                    <span className="text-white font-semibold">${parseFloat(invoice.total).toFixed(2)}</span>
+                    <span className={`text-xs px-3 py-1 rounded-full capitalize w-fit ${statusStyle}`}>
+                      {realStatus}
+                    </span>
+                    <span className={`text-sm ${isOverdue ? 'text-red-400 font-semibold' : 'text-stone-500'}`}>
+                      {new Date(invoice.due_date).toLocaleDateString('en-AU')}
+                    </span>
+                  </a>
+                )
+              })}
+            </div>
           </div>
         )}
       </main>
