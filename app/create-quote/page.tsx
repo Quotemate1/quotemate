@@ -152,7 +152,7 @@ export default function CreateQuotePage() {
       const res = await fetch('/api/generate-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, lineItems: lineItems.filter(item => item.description && item.amount) })
+        body: JSON.stringify({ ...form, lineItems: lineItems.filter(item => item.description && item.amount), userId: (await supabase.auth.getUser()).data.user?.id })
       })
       const data = await res.json()
       if (data.success) {
@@ -160,7 +160,13 @@ export default function CreateQuotePage() {
         setSaved(false)
         setSavedQuoteId(null)
         setStep(3)
-      } else alert('Error generating quote: ' + data.error)
+      } else {
+        if (data.limitReached) {
+          alert('🐜 Daily limit reached!\n\nYou\'ve hit your daily quote limit. Try again tomorrow — this is to keep SmokoHQ fair (and our bills sensible 😅).')
+        } else {
+          alert('Error generating quote: ' + data.error)
+        }
+      }
     } catch { alert('Error connecting to AI. Please try again.') }
     setLoading(false)
   }
