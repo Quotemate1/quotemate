@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { quoteGenLimiter, getClientIp } from '../../lib/ratelimit'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -10,9 +11,25 @@ const DAILY_LIMIT = 20
 
 export async function POST(req: NextRequest) {
   try {
+    // RATE LIMIT CHECK - 10 requests/minute per IP
+    const ip = getClientIp(req)
+    const { success: notRateLimited, remaining, reset } = await quoteGenLimiter.limit(ip)
+
+    if (!notRateLimited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Too many requests. Please slow down and try again in a moment.',
+          rateLimited: true,
+          retryAfter,
+        },
+        { status: 429, headers: { 'Retry-After': retryAfter.toString() } }
+      )
+    }
+
     const body = await req.json()
 
-    // userId is required for rate limiting
     if (!body.userId) {
       return NextResponse.json(
         { success: false, error: 'Missing user identity' },
@@ -20,13 +37,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Service role client (bypasses RLS - we manually check ownership)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Fetch the user's business + their current quote count
     const { data: business, error: bizError } = await supabase
       .from('businesses')
       .select('id, daily_quote_count, quote_count_reset_at')
@@ -40,7 +55,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if we need to reset the counter (new day)
     const lastReset = new Date(business.quote_count_reset_at)
     const now = new Date()
     const isNewDay =
@@ -51,7 +65,6 @@ export async function POST(req: NextRequest) {
     let currentCount = business.daily_quote_count
 
     if (isNewDay) {
-      // Reset the counter
       await supabase
         .from('businesses')
         .update({
@@ -62,7 +75,6 @@ export async function POST(req: NextRequest) {
       currentCount = 0
     }
 
-    // Hard block if at limit
     if (currentCount >= DAILY_LIMIT) {
       return NextResponse.json(
         {
@@ -74,7 +86,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate the quote
     const items = body.lineItems
       .map((i: any) => i.description + ': $' + i.amount)
       .join(', ')
@@ -94,7 +105,6 @@ export async function POST(req: NextRequest) {
     const clean = txt.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const parsedQuote = JSON.parse(clean)
 
-    // Increment the count (only AFTER successful generation)
     await supabase
       .from('businesses')
       .update({ daily_quote_count: currentCount + 1 })
@@ -104,6 +114,7 @@ export async function POST(req: NextRequest) {
       success: true,
       quote: parsedQuote,
       remainingToday: DAILY_LIMIT - (currentCount + 1),
+      remainingMinute: remaining,
     })
   } catch (err: any) {
     return NextResponse.json(
