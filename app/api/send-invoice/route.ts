@@ -1,11 +1,29 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { emailLimiter, getClientIp } from '../../lib/ratelimit'
 
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 export async function POST(req: NextRequest) {
   try {
+    // RATE LIMIT - 5 emails per minute per IP
+    const ip = getClientIp(req)
+    const { success: notRateLimited, reset } = await emailLimiter.limit(ip)
+
+    if (!notRateLimited) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Too many emails sent. Please wait a moment.',
+          rateLimited: true,
+          retryAfter,
+        },
+        { status: 429, headers: { 'Retry-After': retryAfter.toString() } }
+      )
+    }
+
     const body = await req.json()
     const { invoiceId } = body
 
