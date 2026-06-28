@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,6 +11,8 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const turnstileRef = useRef<TurnstileInstance | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,9 +25,43 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+
+      if (!captchaToken) {
+        setMessage('Please complete the CAPTCHA challenge.')
+        setLoading(false)
+        return
+      }
+
+      // Verify CAPTCHA server-side first
+      try {
+        const verifyRes = await fetch('/api/verify-turnstile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: captchaToken })
+        })
+        const verifyData = await verifyRes.json()
+
+        if (!verifyData.success) {
+          setMessage('CAPTCHA verification failed. Please try again.')
+          turnstileRef.current?.reset()
+          setCaptchaToken('')
+          setLoading(false)
+          return
+        }
+      } catch {
+        setMessage('Could not verify CAPTCHA. Please try again.')
+        setLoading(false)
+        return
+      }
+
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setMessage(error.message)
-      else setMessage('Check your email to confirm your account!')
+      if (error) {
+        setMessage(error.message)
+        turnstileRef.current?.reset()
+        setCaptchaToken('')
+      } else {
+        setMessage('Check your email to confirm your account!')
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
@@ -60,24 +97,37 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm text-stone-400 mb-1">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="••••••••" required minLength={6} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:border-emerald-500" placeholder="********" required minLength={6} />
             </div>
 
             {isSignUp && (
-              <div className="pt-2">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} className="mt-1 w-4 h-4 rounded border-stone-700 bg-stone-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-stone-900 cursor-pointer" />
-                  <span className="text-sm text-stone-400 leading-relaxed group-hover:text-stone-300">
-                    I agree to the{' '}
-                    <a href="/terms" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Terms of Service</a>
-                    {' '}and{' '}
-                    <a href="/privacy" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Privacy Policy</a>.
-                  </span>
-                </label>
-              </div>
+              <>
+                <div className="pt-2">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox" checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} className="mt-1 w-4 h-4 rounded border-stone-700 bg-stone-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-stone-900 cursor-pointer" />
+                    <span className="text-sm text-stone-400 leading-relaxed group-hover:text-stone-300">
+                      I agree to the{' '}
+                      <a href="/terms" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Terms of Service</a>
+                      {' '}and{' '}
+                      <a href="/privacy" target="_blank" className="text-emerald-400 hover:text-emerald-300 underline">Privacy Policy</a>.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="pt-2 flex justify-center">
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                    onSuccess={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken('')}
+                    onError={() => setCaptchaToken('')}
+                    options={{ theme: 'dark', size: 'normal' }}
+                  />
+                </div>
+              </>
             )}
 
-            <button type="submit" disabled={loading || (isSignUp && !agreedToTerms)} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20">
+            <button type="submit" disabled={loading || (isSignUp && (!agreedToTerms || !captchaToken))} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20">
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
             </button>
           </form>
@@ -87,8 +137,8 @@ export default function LoginPage() {
           )}
 
           <p className="mt-6 text-center text-sm text-stone-500">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button onClick={() => { setIsSignUp(!isSignUp); setMessage(''); setAgreedToTerms(false) }} className="text-emerald-400 hover:text-emerald-300 font-semibold">
+            {isSignUp ? 'Already have an account?' : "Don\'t have an account?"}{' '}
+            <button onClick={() => { setIsSignUp(!isSignUp); setMessage(''); setAgreedToTerms(false); setCaptchaToken('') }} className="text-emerald-400 hover:text-emerald-300 font-semibold">
               {isSignUp ? 'Sign in' : 'Sign up'}
             </button>
           </p>
