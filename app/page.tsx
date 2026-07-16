@@ -922,6 +922,8 @@ export default function HomeV2() {
               <ul className="space-y-2.5">
                 <li><a href="/blog" className="text-sm text-stone-400 hover:text-white transition-colors">Blog</a></li>
                 <li><a href="/blog/how-to-write-tradie-quote" className="text-sm text-stone-400 hover:text-white transition-colors">Quote guide</a></li>
+                <li><a href="/blog/how-to-price-a-tradie-job-australia" className="text-sm text-stone-400 hover:text-white transition-colors">Pricing guide</a></li>
+                <li><a href="/blog/tradie-invoice-template-australia" className="text-sm text-stone-400 hover:text-white transition-colors">Invoice template</a></li>
               </ul>
             </div>
 
