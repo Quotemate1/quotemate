@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { marked } from 'marked'
 import { POSTS } from '../../lib/posts'
 
 export async function generateStaticParams() {
@@ -20,6 +21,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const { slug } = await params
   const post = POSTS.find((p) => p.slug === slug)
   if (!post) notFound()
+
+  const contentHtml = marked.parse(post.content, { async: false }) as string
 
   return (
     <div className="min-h-screen bg-stone-950 text-white">
@@ -46,7 +49,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
         <div
           className="prose prose-invert prose-lg max-w-none prose-headings:text-white prose-headings:font-bold prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-p:text-stone-300 prose-p:leading-relaxed prose-strong:text-white prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline prose-ul:text-stone-300 prose-ol:text-stone-300 prose-li:my-2"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
         />
 
         <div className="mt-16 p-8 bg-emerald-500/5 border border-emerald-500/30 rounded-2xl text-center">
